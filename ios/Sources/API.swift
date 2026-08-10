@@ -355,7 +355,31 @@ struct MusicStats: Codable {
     let top_artists: [MusicArtistRow]?
     let top_songs: [MusicSongRow]?
     let pr_songs: [MusicSongRow]?
+    let genres: [MusicGenreRow]?
+    let genre_results: [MusicGenreResultRow]?
+    let weekday_genres: [MusicWeekdayGenreRow]?
     let sources: MusicSources?
+}
+
+struct MusicGenreRow: Codable {
+    let genre: String
+    let plays: Int
+    let workouts: Int?
+}
+
+struct MusicGenreResultRow: Codable {
+    let genre: String
+    let sets: Int
+    let prs: Int
+    let pr_per_100: Double
+    let avg_rpe: Double?
+}
+
+struct MusicWeekdayGenreRow: Codable {
+    let weekday: Int // 0 = Monday
+    let genre: String
+    let plays: Int
+    let total: Int
 }
 
 struct MusicArtistRow: Codable {
@@ -384,7 +408,23 @@ struct ExerciseStats: Codable {
     let variations: [ExerciseVariation]
     let records: ExerciseRecords?
     let chart: [ExerciseChartPoint]
+    /// Family view: one entry per variant (≤4, name order), only when ?family=true
+    let series: [ExerciseSeries]?
     let history: [ExerciseHistoryEntry]
+}
+
+struct ExerciseSeries: Codable {
+    let exercise_id: Int
+    let name: String
+    let points: [ExerciseSeriesPoint]
+}
+
+struct ExerciseSeriesPoint: Codable {
+    let date: String
+    let best_1rm: Double?
+    let best_weight: Double?
+    let best_reps: Double?
+    let volume: Double?
 }
 
 struct ExerciseVariation: Codable, Identifiable {

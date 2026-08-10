@@ -21,6 +21,7 @@ from backend.models import (
     WorkoutExercise,
     WorkoutSong,
 )
+from backend.genres import enrich_genres
 from backend.program_schemes import SCHEMES
 from backend.serializers import epley_1rm, workout_totals
 
@@ -36,6 +37,10 @@ REST_MIN_SECONDS = 15
 REST_MAX_SECONDS = 600
 STALL_WINDOW_DAYS = 45
 BLOCK_DAYS = 28
+# A genre needs this many sets inside its play windows before "results by
+# genre" says anything about it; a weekday needs this many plays to rank one
+GENRE_RESULT_MIN_SETS = 10
+WEEKDAY_GENRE_MIN_PLAYS = 3
 TIME_BUCKET_DAYS = 180
 # Forecast guardrails: enough points to mean anything, near enough to believe
 FORECAST_MIN_POINTS = 4
@@ -126,6 +131,7 @@ def music_stats(user: User = Depends(get_current_user), db: Session = Depends(ge
     """Train-time listening: what plays while you lift and what plays when
     PRs go down. Song identity = apple_id, falling back to title|artist, so
     the same track streamed and local aggregates together."""
+    enrich_genres(db, user.id)
     rows = db.execute(
         select(WorkoutSong, Workout)
         .join(Workout, WorkoutSong.workout_id == Workout.id)
@@ -135,6 +141,7 @@ def music_stats(user: User = Depends(get_current_user), db: Session = Depends(ge
     empty = {
         "workouts": 0, "songs": 0, "unique_songs": 0, "artists": 0,
         "top_artists": [], "top_songs": [], "pr_songs": [],
+        "genres": [], "genre_results": [], "weekday_genres": [],
         "sources": {"live": 0, "inferred": 0},
     }
     if not rows:
@@ -143,23 +150,32 @@ def music_stats(user: User = Depends(get_current_user), db: Session = Depends(ge
     def _naive(dt):
         return dt.replace(tzinfo=None) if dt is not None and dt.tzinfo else dt
 
-    # PR set completion times per workout — a song "carried" a PR when the
-    # completion lands inside its play window
+    # Completed-set times per workout — a song "carried" a set (or a PR) when
+    # the completion lands inside its play window
     workout_ids = {w.id for _, w in rows}
-    pr_times: dict[int, list] = defaultdict(list)
-    for completed_at, workout_id in db.execute(
-        select(SetEntry.completed_at, WorkoutExercise.workout_id)
+    set_times: dict[int, list] = defaultdict(list)
+    for completed_at, rpe, is_pr, workout_id in db.execute(
+        select(
+            SetEntry.completed_at, SetEntry.rpe, SetEntry.is_pr,
+            WorkoutExercise.workout_id,
+        )
         .join(WorkoutExercise, SetEntry.workout_exercise_id == WorkoutExercise.id)
         .where(
             WorkoutExercise.workout_id.in_(workout_ids),
-            SetEntry.is_pr.is_(True),
+            SetEntry.is_completed.is_(True),
+            SetEntry.is_warmup.is_(False),
             SetEntry.completed_at.is_not(None),
         )
     ).all():
-        pr_times[workout_id].append(_naive(completed_at))
+        set_times[workout_id].append((_naive(completed_at), rpe, is_pr))
+    pr_times = {
+        wid: [t for t, _rpe, pr in entries if pr] for wid, entries in set_times.items()
+    }
 
     artists: dict[str, dict] = {}
     songs: dict[str, dict] = {}
+    genres: dict[str, dict] = {}
+    weekday_counts: dict[int, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     sources = {"live": 0, "inferred": 0}
     for song, workout in rows:
         sources[song.source if song.source in sources else "live"] += 1
@@ -179,6 +195,30 @@ def music_stats(user: User = Depends(get_current_user), db: Session = Depends(ge
         start = _naive(song.started_at)
         end = _naive(song.ended_at) or start
         s["prs"] += sum(1 for t in pr_times.get(workout.id, []) if start <= t <= end)
+
+        if song.genre:
+            g = genres.setdefault(
+                song.genre,
+                {"plays": 0, "workouts": set(), "sets": 0, "prs": 0,
+                 "rpe_sum": 0.0, "rpe_n": 0},
+            )
+            g["plays"] += 1
+            g["workouts"].add(workout.id)
+            weekday_counts[workout.started_at.weekday()][song.genre] += 1
+            for t, rpe, is_pr in set_times.get(workout.id, []):
+                if start <= t <= end:
+                    g["sets"] += 1
+                    if is_pr:
+                        g["prs"] += 1
+                    if rpe is not None:
+                        g["rpe_sum"] += rpe
+                        g["rpe_n"] += 1
+
+    # Genres earn a "results" row once enough sets landed inside their windows
+    qualified = [
+        (name, g) for name, g in genres.items() if g["sets"] >= GENRE_RESULT_MIN_SETS
+    ]
+    qualified.sort(key=lambda kv: (-kv[1]["prs"] / kv[1]["sets"], -kv[1]["sets"]))
 
     def song_row(s):
         return {
@@ -204,6 +244,30 @@ def music_stats(user: User = Depends(get_current_user), db: Session = Depends(ge
             for s in sorted(songs.values(), key=lambda s: (-s["prs"], -s["plays"]))
             if s["prs"] > 0
         ][:10],
+        "genres": [
+            {"genre": name, "plays": g["plays"], "workouts": len(g["workouts"])}
+            for name, g in sorted(genres.items(), key=lambda kv: -kv[1]["plays"])
+        ],
+        "genre_results": [
+            {
+                "genre": name,
+                "sets": g["sets"],
+                "prs": g["prs"],
+                "pr_per_100": round(g["prs"] / g["sets"] * 100, 1),
+                "avg_rpe": round(g["rpe_sum"] / g["rpe_n"], 1) if g["rpe_n"] else None,
+            }
+            for name, g in qualified
+        ],
+        "weekday_genres": [
+            {
+                "weekday": wd,
+                "genre": max(counts.items(), key=lambda kv: kv[1])[0],
+                "plays": max(counts.values()),
+                "total": sum(counts.values()),
+            }
+            for wd, counts in sorted(weekday_counts.items())
+            if sum(counts.values()) >= WEEKDAY_GENRE_MIN_PLAYS
+        ],
         "sources": sources,
     }
 

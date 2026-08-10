@@ -65,6 +65,86 @@ struct MusicStatsView: View {
                     }
                 }
 
+                if let genres = s.genres, !genres.isEmpty {
+                    let maxPlays = max(1, genres.first?.plays ?? 1)
+                    card {
+                        Text("Genres while training")
+                            .font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
+                            .padding(.bottom, 2)
+                        ForEach(Array(genres.prefix(8).enumerated()), id: \.offset) { _, g in
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack(alignment: .firstTextBaseline) {
+                                    Text(g.genre)
+                                        .font(.system(size: 13, weight: .medium))
+                                        .foregroundStyle(.white).lineLimit(1)
+                                    Spacer()
+                                    Text("\(g.plays) play\(g.plays == 1 ? "" : "s") · \(g.workouts ?? 0) workout\((g.workouts ?? 0) == 1 ? "" : "s")")
+                                        .font(.system(size: 11).monospacedDigit())
+                                        .foregroundStyle(FG.muted)
+                                }
+                                GeometryReader { geo in
+                                    ZStack(alignment: .leading) {
+                                        Capsule().fill(FG.secondary)
+                                        Capsule().fill(FG.ember.opacity(0.7))
+                                            .frame(width: max(8, geo.size.width * CGFloat(g.plays) / CGFloat(maxPlays)))
+                                    }
+                                }
+                                .frame(height: 5)
+                            }
+                            .padding(.vertical, 3)
+                        }
+                    }
+                }
+
+                if let results = s.genre_results, results.count > 1 {
+                    card {
+                        Text("Which genre lifts hardest")
+                            .font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
+                        Text("sets and PRs that landed while each genre was playing — correlation, not causation, but fun to argue about")
+                            .font(.system(size: 11)).foregroundStyle(FG.muted)
+                            .padding(.bottom, 2)
+                        ForEach(Array(results.enumerated()), id: \.offset) { _, g in
+                            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(g.genre)
+                                        .font(.system(size: 13, weight: .medium))
+                                        .foregroundStyle(.white).lineLimit(1)
+                                    Text("\(g.sets) sets" + (g.avg_rpe.map { " · avg RPE \(trim($0))" } ?? ""))
+                                        .font(.system(size: 11).monospacedDigit())
+                                        .foregroundStyle(FG.muted)
+                                }
+                                Spacer(minLength: 12)
+                                Text("\(trim(g.pr_per_100)) PRs / 100 sets")
+                                    .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                                    .foregroundStyle(FG.gold)
+                            }
+                            .padding(.vertical, 3)
+                        }
+                    }
+                }
+
+                if let weekdays = s.weekday_genres, weekdays.count > 1 {
+                    let names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+                    card {
+                        Text("Weekday soundtrack")
+                            .font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
+                            .padding(.bottom, 2)
+                        ForEach(Array(weekdays.enumerated()), id: \.offset) { _, d in
+                            HStack(alignment: .firstTextBaseline) {
+                                Text(names[d.weekday % 7])
+                                    .font(.system(size: 13)).foregroundStyle(FG.muted)
+                                Spacer()
+                                (Text(d.genre)
+                                    .font(.system(size: 13, weight: .medium)).foregroundStyle(.white)
+                                 + Text("  \(Int((Double(d.plays) / Double(max(1, d.total))) * 100))%")
+                                    .font(.system(size: 11).monospacedDigit()).foregroundStyle(FG.muted))
+                                    .lineLimit(1)
+                            }
+                            .padding(.vertical, 2)
+                        }
+                    }
+                }
+
                 if let artists = s.top_artists, !artists.isEmpty {
                     let maxPlays = max(1, artists.first?.plays ?? 1)
                     card {

@@ -54,6 +54,8 @@ const METRIC_LABEL: Record<Metric, string> = {
 }
 
 const RPE_COLOR = '#6d87ab'
+// Validated categorical steps from index.css — fixed order, never cycled
+const SERIES_COLORS = ['var(--series-1)', 'var(--series-2)', 'var(--series-3)', 'var(--series-4)']
 
 function StatTile({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
@@ -128,7 +130,28 @@ export default function ExerciseDetailPage() {
   const data = chart
     .filter((c) => parseUTC(c.date).getTime() >= rangeCutoff)
     .map((c) => ({ ...c, label: formatShortDate(c.date) }))
-  const rpeOverlay = metric === 'best_1rm' && data.some((c) => c.avg_rpe != null)
+
+  // Family mode: every variant as its own line, merged on the workout date.
+  // Colors are position-in-series (name order from the API), so a variant
+  // keeps its hue across metric switches and ranges.
+  const familyMode = includeFamily && (stats.series?.length ?? 0) > 1
+  const familyData = (() => {
+    if (!familyMode) return []
+    const byDate = new Map<string, Record<string, string | number>>()
+    for (const s of stats.series) {
+      for (const p of s.points) {
+        if (parseUTC(p.date).getTime() < rangeCutoff) continue
+        const row = byDate.get(p.date) ?? { date: p.date, label: formatShortDate(p.date) }
+        row[s.name] = p[metric]
+        byDate.set(p.date, row)
+      }
+    }
+    return [...byDate.values()].sort(
+      (a, b) => parseUTC(a.date as string).getTime() - parseUTC(b.date as string).getTime(),
+    )
+  })()
+
+  const rpeOverlay = !familyMode && metric === 'best_1rm' && data.some((c) => c.avg_rpe != null)
   const worked = musclesFor(exercise.name, exercise.muscle_group)
   const muscleCard = worked.primary.length > 0 && (
     <section className="mt-4 rounded-xl border bg-card p-4">
@@ -327,7 +350,43 @@ export default function ExerciseDetailPage() {
             />
             <div className="h-52 md:h-72">
               <ResponsiveContainer width="100%" height="100%">
-                {metric === 'volume' ? (
+                {familyMode ? (
+                  <LineChart data={familyData} margin={{ top: 6, right: 12, bottom: 0, left: -18 }}>
+                    <CartesianGrid vertical={false} stroke="var(--border)" />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+                      tickLine={false}
+                      axisLine={{ stroke: 'var(--border)' }}
+                    />
+                    <YAxis
+                      domain={['auto', 'auto']}
+                      tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+                      tickLine={false}
+                      axisLine={false}
+                      width={46}
+                    />
+                    <Tooltip
+                      cursor={{ stroke: 'var(--muted-foreground)', strokeDasharray: '3 3' }}
+                      contentStyle={tooltipStyle}
+                      formatter={(value) => [
+                        metric === 'best_reps' ? `${value} reps` : `${value} ${unit}`,
+                      ]}
+                    />
+                    {stats.series.map((s, i) => (
+                      <Line
+                        key={s.exercise_id}
+                        type="monotone"
+                        dataKey={s.name}
+                        stroke={SERIES_COLORS[i]}
+                        strokeWidth={2}
+                        dot={{ r: 3, fill: SERIES_COLORS[i], strokeWidth: 0 }}
+                        activeDot={{ r: 5, fill: SERIES_COLORS[i], stroke: 'var(--card)', strokeWidth: 2 }}
+                        connectNulls
+                      />
+                    ))}
+                  </LineChart>
+                ) : metric === 'volume' ? (
                   <BarChart data={data} margin={{ top: 6, right: 12, bottom: 0, left: -18 }}>
                     <CartesianGrid vertical={false} stroke="var(--border)" />
                     <XAxis
@@ -418,6 +477,21 @@ export default function ExerciseDetailPage() {
                 )}
               </ResponsiveContainer>
             </div>
+            {familyMode && (
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                {stats.series.map((s, i) => (
+                  <span key={s.exercise_id} className="flex items-center gap-1.5 text-xs">
+                    <span
+                      className="h-2.5 w-2.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: SERIES_COLORS[i] }}
+                    />
+                    <span className={s.exercise_id === exercise.id ? 'font-semibold' : 'text-muted-foreground'}>
+                      {s.name}
+                    </span>
+                  </span>
+                ))}
+              </div>
+            )}
             {rpeOverlay && (
               <p className="mt-2 text-[11px] text-muted-foreground">
                 <span style={{ color: RPE_COLOR }}>– –</span> average RPE per session — rising 1RM at

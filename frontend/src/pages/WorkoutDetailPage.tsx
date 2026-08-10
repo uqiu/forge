@@ -1,7 +1,8 @@
 import { Check, ChevronLeft, Clock, Music, Pencil, Plus, RotateCcw, Share, Trash2, Trophy, Weight, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import ExercisePicker from '../components/ExercisePicker'
+import SessionTimeline from '../components/SessionTimeline'
 import Sheet from '../components/Sheet'
 import { useAuth } from '../contexts/AuthContext'
 import { useWorkout } from '../contexts/WorkoutContext'
@@ -29,6 +30,17 @@ function parseNum(value: string): number | null {
 interface SongEntry {
   song: WorkoutSong
   pr: boolean
+}
+
+/** Best estimated 1RM across an exercise's working sets (Epley). */
+function bestE1rm(we: WorkoutExercise): number | null {
+  let best = 0
+  for (const s of we.sets) {
+    if (s.is_warmup || !s.reps || !s.weight || s.weight <= 0) continue
+    const e = s.weight * (1 + s.reps / 30)
+    if (e > best) best = e
+  }
+  return best > 0 ? Math.round(best) : null
 }
 
 /** Tracklist grouped by what you were lifting: a song's exercise = most set
@@ -159,6 +171,7 @@ export default function WorkoutDetailPage() {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [showAllSongs, setShowAllSongs] = useState(false)
   const unit = user?.unit ?? 'kg'
 
   useEffect(() => {
@@ -316,7 +329,7 @@ export default function WorkoutDetailPage() {
   }
 
   return (
-    <div className="safe-top w-full px-4 md:max-w-3xl">
+    <div className="safe-top w-full px-4">
       <header className="flex items-center gap-2 pt-4 pb-2">
         <button
           onClick={() => (editing ? finishEditing() : navigate(-1))}
@@ -461,7 +474,9 @@ export default function WorkoutDetailPage() {
           </div>
           <div className="rounded-xl border bg-card p-3 text-center">
             <Trophy size={16} className="mx-auto mb-1 text-muted-foreground" />
-            <div className="tnum font-semibold">{workout.pr_count ?? 0} PRs</div>
+            <div className="tnum font-semibold">
+              {workout.pr_count ?? 0} PR{(workout.pr_count ?? 0) === 1 ? '' : 's'}
+            </div>
           </div>
         </div>
       )}
@@ -487,16 +502,28 @@ export default function WorkoutDetailPage() {
         )
       )}
 
-      <div className={cn('mt-4 grid gap-3 pb-8', !editing && 'md:grid-cols-2 md:items-start')}>
+      {!editing && <SessionTimeline workout={workout} unit={unit} />}
+
+      <div className="mt-4 pb-8">
+      <div className={cn(editing ? 'grid gap-3' : 'md:columns-2 md:gap-3')}>
         {workout.exercises.map((we) => (
-          <section key={we.id} className="animate-card-appear rounded-xl border bg-card p-4">
-            <div className="flex items-center justify-between gap-2">
+          <section
+            key={we.id}
+            className={cn(
+              'animate-card-appear rounded-xl border bg-card p-4',
+              !editing && 'mb-3 break-inside-avoid',
+            )}
+          >
+            <div className={cn('flex justify-between gap-2', editing ? 'items-center' : 'items-baseline')}>
               {editing ? (
                 <span className="font-semibold text-primary">{we.name}</span>
               ) : (
-                <Link to={`/exercises/${we.exercise_id}`} className="font-semibold text-primary">
+                <Link to={`/exercises/${we.exercise_id}`} className="min-w-0 font-semibold text-primary">
                   {we.name}
                 </Link>
+              )}
+              {!editing && bestE1rm(we) != null && (
+                <span className="tnum shrink-0 text-xs text-muted-foreground">e1RM {bestE1rm(we)}</span>
               )}
               {editing && (
                 <button
@@ -538,20 +565,21 @@ export default function WorkoutDetailPage() {
                 </button>
               </>
             ) : (
-              <div className="mt-2 flex flex-col gap-1">
+              <div className="tnum mt-2 grid grid-cols-[1.25rem_max-content_1fr] items-center gap-x-2.5 gap-y-1 text-sm">
                 {we.sets.map((set) => (
-                  <div key={set.id} className="flex items-center gap-3 text-sm">
-                    <span className="tnum w-5 text-center font-semibold text-muted-foreground">
+                  <Fragment key={set.id}>
+                    <span className="text-center font-semibold text-muted-foreground">
                       {set.is_warmup ? <span className="text-warning">W</span> : set.position + 1}
                     </span>
-                    <span className="tnum">
-                      {formatSetWeight(set.weight, unit)} × {set.reps}
+                    <span className="text-right">{formatSetWeight(set.weight, unit)}</span>
+                    <span className="flex items-center gap-1.5">
+                      × {set.reps}
                       {set.rpe != null && (
-                        <span className="text-muted-foreground"> @{set.rpe}</span>
+                        <span className="text-muted-foreground">@{set.rpe}</span>
                       )}
+                      {set.is_pr && <Trophy size={14} className="text-record" />}
                     </span>
-                    {set.is_pr && <Trophy size={14} className="text-record" />}
-                  </div>
+                  </Fragment>
                 ))}
               </div>
             )}
@@ -566,46 +594,74 @@ export default function WorkoutDetailPage() {
             <Plus size={18} /> Add exercise
           </button>
         )}
+      </div>
 
-        {!editing && workout.music && workout.music.length > 0 && (
+      {!editing && workout.music && workout.music.length > 0 && (() => {
+        const groups = groupSoundtrack(workout.music, workout)
+        const total = workout.music.length
+        // Long tracklists start folded to the first ~10 songs
+        let visible = groups
+        let shown = total
+        if (!showAllSongs && total > 14) {
+          visible = []
+          shown = 0
+          for (const group of groups) {
+            if (shown >= 10) break
+            const songs = group.songs.slice(0, 10 - shown)
+            visible.push({ exercise: group.exercise, songs })
+            shown += songs.length
+          }
+        }
+        return (
           <section className="animate-card-appear rounded-xl border bg-card p-4">
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-1.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
                 <Music size={13} /> Soundtrack
               </span>
               <span className="tnum text-xs text-muted-foreground">
-                {workout.music.length} song{workout.music.length === 1 ? '' : 's'}
+                {total} song{total === 1 ? '' : 's'}
               </span>
             </div>
-            {groupSoundtrack(workout.music, workout).map((group, gi) => (
-              <div key={gi} className="mt-3">
-                {group.exercise && (
-                  <div className="mb-1.5 text-[10px] font-semibold tracking-wide text-primary/85 uppercase">
-                    {group.exercise}
-                  </div>
-                )}
-                <div className="flex flex-col gap-1.5">
-                  {group.songs.map(({ song, pr }, i) => (
-                    <div key={i} className="flex items-baseline justify-between gap-3 text-sm">
-                      <span className="min-w-0">
-                        <span className="block truncate font-medium">{song.title}</span>
-                        {song.artist && (
-                          <span className="block truncate text-xs text-muted-foreground">{song.artist}</span>
-                        )}
-                      </span>
-                      <span className="tnum flex shrink-0 items-baseline gap-1.5 text-xs text-muted-foreground">
-                        {pr && <Trophy size={12} className="self-center text-record" />}
-                        {/* ≈ marks a song Apple Music remembered but the app never saw play */}
-                        {song.source === 'inferred' ? '≈ ' : ''}
-                        {formatTime(song.started_at)}
-                      </span>
+            <div className="md:columns-2 md:gap-8">
+              {visible.map((group, gi) => (
+                <div key={gi} className="mt-3 break-inside-avoid">
+                  {group.exercise && (
+                    <div className="mb-1.5 text-[10px] font-semibold tracking-wide text-primary/85 uppercase">
+                      {group.exercise}
                     </div>
-                  ))}
+                  )}
+                  <div className="flex flex-col gap-1.5">
+                    {group.songs.map(({ song, pr }, i) => (
+                      <div key={i} className="flex items-baseline justify-between gap-3 text-sm">
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium">{song.title}</span>
+                          {song.artist && (
+                            <span className="block truncate text-xs text-muted-foreground">{song.artist}</span>
+                          )}
+                        </span>
+                        <span className="tnum flex shrink-0 items-baseline gap-1.5 text-xs text-muted-foreground">
+                          {pr && <Trophy size={12} className="self-center text-record" />}
+                          {/* ≈ marks a song Apple Music remembered but the app never saw play */}
+                          {song.source === 'inferred' ? '≈ ' : ''}
+                          {formatTime(song.started_at)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+            {total > 14 && (
+              <button
+                onClick={() => setShowAllSongs((v) => !v)}
+                className="touch-feedback mt-3 w-full rounded-lg bg-secondary py-2 text-sm font-semibold text-secondary-foreground"
+              >
+                {showAllSongs ? 'Show fewer' : `Show all ${total} songs`}
+              </button>
+            )}
           </section>
-        )}
+        )
+      })()}
       </div>
 
       <ExercisePicker open={pickerOpen} onClose={() => setPickerOpen(false)} onPick={(e) => addExercise(e.id)} />

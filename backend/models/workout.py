@@ -63,6 +63,9 @@ class WorkoutSong(Base):
     # streamed tracks; null for purely local files. Aggregate by this first,
     # falling back to (title, artist).
     apple_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    # Primary genre from the iTunes catalog, backfilled server-side by
+    # apple_id lookup (backend/genres.py) — the phone never sends this.
+    genre: Mapped[str | None] = mapped_column(String(64), nullable=True)
     started_at: Mapped[datetime] = mapped_column(DateTime)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     # 'live' = observed by the running app; 'inferred' = reconstructed after

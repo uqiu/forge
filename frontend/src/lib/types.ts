@@ -193,6 +193,12 @@ export interface ExerciseStats {
     times_performed: number
   }
   chart: { date: string; best_1rm: number; best_weight: number; best_reps: number; volume: number; avg_rpe: number | null }[]
+  /** Family view: one entry per variant (≤4, name order), only when ?family=true */
+  series: {
+    exercise_id: number
+    name: string
+    points: { date: string; best_1rm: number; best_weight: number; best_reps: number; volume: number }[]
+  }[]
   history: {
     workout_id: number
     workout_name: string

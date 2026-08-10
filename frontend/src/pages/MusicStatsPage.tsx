@@ -1,4 +1,4 @@
-import { ChevronLeft, Music, Trophy } from 'lucide-react'
+import { ChevronLeft, Dumbbell, MicVocal, Music, Trophy } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Skeleton from '../components/Skeleton'
@@ -18,6 +18,27 @@ interface SongRow {
   workouts: number
 }
 
+interface GenreRow {
+  genre: string
+  plays: number
+  workouts: number
+}
+
+interface GenreResultRow {
+  genre: string
+  sets: number
+  prs: number
+  pr_per_100: number
+  avg_rpe: number | null
+}
+
+interface WeekdayGenreRow {
+  weekday: number // 0 = Monday
+  genre: string
+  plays: number
+  total: number
+}
+
 interface MusicStats {
   workouts: number
   songs: number
@@ -26,8 +47,13 @@ interface MusicStats {
   top_artists: ArtistRow[]
   top_songs: SongRow[]
   pr_songs: SongRow[]
+  genres?: GenreRow[]
+  genre_results?: GenreResultRow[]
+  weekday_genres?: WeekdayGenreRow[]
   sources: { live: number; inferred: number }
 }
+
+const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 /** Train-time listening, aggregated from every workout soundtrack the
  *  companion captured. Everything grows with the data — one workout in,
@@ -75,11 +101,13 @@ export default function MusicStatsPage() {
               <div className="text-xs text-muted-foreground">songs played</div>
             </div>
             <div className="rounded-xl border bg-card p-3 text-center">
-              <div className="tnum mt-5 font-semibold">{stats.artists}</div>
+              <MicVocal size={16} className="mx-auto mb-1 text-muted-foreground" />
+              <div className="tnum font-semibold">{stats.artists}</div>
               <div className="text-xs text-muted-foreground">artists</div>
             </div>
             <div className="rounded-xl border bg-card p-3 text-center">
-              <div className="tnum mt-5 font-semibold">{stats.workouts}</div>
+              <Dumbbell size={16} className="mx-auto mb-1 text-muted-foreground" />
+              <div className="tnum font-semibold">{stats.workouts}</div>
               <div className="text-xs text-muted-foreground">workouts</div>
             </div>
           </div>
@@ -100,6 +128,77 @@ export default function MusicStatsPage() {
                     </span>
                     <span className="tnum shrink-0 text-xs font-semibold text-record">
                       {s.prs} PR{s.prs === 1 ? '' : 's'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {(stats.genres?.length ?? 0) > 0 && (
+            <section className="rounded-xl border bg-card p-4">
+              <h2 className="mb-3 text-base">Genres while training</h2>
+              <div className="flex flex-col gap-2.5">
+                {stats.genres!.slice(0, 8).map((g) => (
+                  <div key={g.genre}>
+                    <div className="flex items-baseline justify-between gap-2 text-sm">
+                      <span className="min-w-0 truncate font-medium">{g.genre}</span>
+                      <span className="tnum shrink-0 text-xs text-muted-foreground">
+                        {g.plays} play{g.plays === 1 ? '' : 's'} · {g.workouts} workout
+                        {g.workouts === 1 ? '' : 's'}
+                      </span>
+                    </div>
+                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-secondary">
+                      <div
+                        className="h-full rounded-full bg-primary/70"
+                        style={{
+                          width: `${Math.max(6, (g.plays / (stats.genres![0]?.plays || 1)) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {(stats.genre_results?.length ?? 0) > 1 && (
+            <section className="rounded-xl border bg-card p-4">
+              <h2 className="text-base">Which genre lifts hardest</h2>
+              <p className="mt-0.5 mb-3 text-xs text-muted-foreground">
+                sets and PRs that landed while each genre was playing — correlation, not causation,
+                but fun to argue about
+              </p>
+              <div className="flex flex-col gap-2">
+                {stats.genre_results!.map((g) => (
+                  <div key={g.genre} className="flex items-baseline justify-between gap-3 text-sm">
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium">{g.genre}</span>
+                      <span className="tnum block text-xs text-muted-foreground">
+                        {g.sets} sets{g.avg_rpe != null && ` · avg RPE ${g.avg_rpe}`}
+                      </span>
+                    </span>
+                    <span className="tnum shrink-0 text-xs font-semibold text-record">
+                      {g.pr_per_100} PRs / 100 sets
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {(stats.weekday_genres?.length ?? 0) > 1 && (
+            <section className="rounded-xl border bg-card p-4">
+              <h2 className="mb-3 text-base">Weekday soundtrack</h2>
+              <div className="flex flex-col gap-1.5">
+                {stats.weekday_genres!.map((d) => (
+                  <div key={d.weekday} className="flex items-baseline justify-between gap-3 text-sm">
+                    <span className="text-muted-foreground">{WEEKDAYS[d.weekday]}</span>
+                    <span className="tnum min-w-0 truncate font-medium">
+                      {d.genre}
+                      <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                        {Math.round((d.plays / d.total) * 100)}%
+                      </span>
                     </span>
                   </div>
                 ))}

@@ -63,6 +63,13 @@
   --ring: oklch(0.48 0.13 45);
   /* Chart accent validated against the light surface (contrast >= 3:1). */
   --chart-accent: oklch(0.55 0.14 48);
+  /* Categorical series (family view): fixed order, validated as a set
+     against the light card surface — lightness band, chroma floor, CVD
+     separation, normal-vision separation, contrast all pass. */
+  --series-1: var(--chart-accent);
+  --series-2: #3d6bc0;
+  --series-3: #2e8a44;
+  --series-4: #8a4fb5;
   --accent-soft: oklch(0.48 0.13 45 / 0.12);
   /* Opaque accent-soft-over-card: completed set rows must fully cover the
      swipe-to-delete layer mounted beneath them. */
@@ -97,6 +104,10 @@
   /* Darker than --primary on purpose: chart marks sit in the validated
      dark-mode lightness band (L 0.48-0.67), buttons can run brighter. */
   --chart-accent: oklch(0.65 0.13 50);
+  /* Dark-mode categorical steps, validated against the dark card surface. */
+  --series-2: #6389d6;
+  --series-3: #47a85e;
+  --series-4: #a774cd;
   --accent-soft: oklch(0.70 0.13 50 / 0.16);
   --set-done: color-mix(in oklch, oklch(0.70 0.13 50) 16%, var(--card));
 }

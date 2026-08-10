@@ -297,7 +297,9 @@ def exercise_stats(
         stat_ids = [exercise_id]
 
     rows = db.execute(
-        completed_sets_query(user.id, stat_ids).order_by(Workout.started_at)
+        completed_sets_query(user.id, stat_ids)
+        .add_columns(WorkoutExercise.exercise_id)
+        .order_by(Workout.started_at)
     ).all()
 
     best_weight = None
@@ -307,9 +309,11 @@ def exercise_stats(
     total_reps = 0
     total_volume = 0.0
 
-    # Per-workout aggregation for history + chart
+    # Per-workout aggregation for history + chart; per-(exercise, workout)
+    # feeds the family-view series so each variant charts as its own line
     by_workout: dict[int, dict] = {}
-    for set_entry, workout in rows:
+    by_ex_workout: dict[tuple[int, int], dict] = {}
+    for set_entry, workout, row_ex_id in rows:
         weight = set_entry.weight or 0.0
         one_rm = epley_1rm(weight, set_entry.reps) if weight > 0 else 0.0
         set_volume = weight * set_entry.reps
@@ -366,6 +370,22 @@ def exercise_stats(
             entry["rpe_sum"] += set_entry.rpe
             entry["rpe_n"] += 1
 
+        if family:
+            pt = by_ex_workout.setdefault(
+                (row_ex_id, workout.id),
+                {
+                    "date": workout.started_at,
+                    "best_1rm": 0.0,
+                    "best_weight": 0.0,
+                    "best_reps": 0,
+                    "volume": 0.0,
+                },
+            )
+            pt["best_1rm"] = round(max(pt["best_1rm"], one_rm), 1)
+            pt["best_weight"] = max(pt["best_weight"], weight)
+            pt["best_reps"] = max(pt["best_reps"], set_entry.reps)
+            pt["volume"] = round(pt["volume"] + set_volume, 1)
+
     workouts = sorted(by_workout.values(), key=lambda w: w["date"])
     chart = [
         {
@@ -408,6 +428,24 @@ def exercise_stats(
         else []
     )
 
+    # Family view: one line per variant (the 4 most-trained), stable name order
+    # so a variant keeps its color regardless of which metric is displayed
+    series = []
+    if family and len(stat_ids) > 1:
+        name_by_id = {v.id: v.name for v in family_members}
+        candidates = []
+        for ex_id in stat_ids:
+            points = sorted(
+                (pt for (eid, _wid), pt in by_ex_workout.items() if eid == ex_id),
+                key=lambda p: p["date"],
+            )
+            if points:
+                candidates.append(
+                    {"exercise_id": ex_id, "name": name_by_id.get(ex_id, ""), "points": points}
+                )
+        candidates.sort(key=lambda s: -len(s["points"]))
+        series = sorted(candidates[:4], key=lambda s: s["name"].lower())
+
     note = db.execute(
         select(ExerciseNote.text).where(
             ExerciseNote.user_id == user.id, ExerciseNote.exercise_id == exercise_id
@@ -438,6 +476,7 @@ def exercise_stats(
             "times_performed": len(workouts),
         },
         "chart": chart,
+        "series": series,
         "history": list(reversed(workouts)),
     }
 

@@ -321,18 +321,29 @@ struct ExerciseDetailView: View {
                 height: 30
             )
 
-            let data = chartData(s)
-            if data.isEmpty {
-                Text("No data in this range.")
-                    .font(.system(size: 13)).foregroundStyle(FG.muted)
-                    .frame(maxWidth: .infinity).padding(.vertical, 40)
+            if let series = s.series, includeFamily, series.count > 1 {
+                let data = familyData(series)
+                if data.isEmpty {
+                    Text("No data in this range.")
+                        .font(.system(size: 13)).foregroundStyle(FG.muted)
+                        .frame(maxWidth: .infinity).padding(.vertical, 40)
+                } else {
+                    familyChart(data, names: series.map(\.name))
+                }
             } else {
-                chart(data)
-                if metric == "best_1rm", data.contains(where: { $0.rpe != nil }) {
-                    (Text("– – ").foregroundStyle(Self.rpeColor)
-                     + Text("average RPE per session — rising 1RM at flat RPE is real strength; flat 1RM at rising RPE is strain")
-                        .foregroundStyle(FG.muted))
-                        .font(.system(size: 11))
+                let data = chartData(s)
+                if data.isEmpty {
+                    Text("No data in this range.")
+                        .font(.system(size: 13)).foregroundStyle(FG.muted)
+                        .frame(maxWidth: .infinity).padding(.vertical, 40)
+                } else {
+                    chart(data)
+                    if metric == "best_1rm", data.contains(where: { $0.rpe != nil }) {
+                        (Text("– – ").foregroundStyle(Self.rpeColor)
+                         + Text("average RPE per session — rising 1RM at flat RPE is real strength; flat 1RM at rising RPE is strain")
+                            .foregroundStyle(FG.muted))
+                            .font(.system(size: 11))
+                    }
                 }
             }
         }
@@ -410,6 +421,127 @@ struct ExerciseDetailView: View {
     private func nearestPoint(_ data: [ChartPoint], to date: Date?) -> ChartPoint? {
         guard let date else { return nil }
         return data.min { abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date)) }
+    }
+
+    // MARK: family chart — one line per variant
+
+    private struct FamilyPoint: Identifiable {
+        let id: Int
+        let name: String
+        let date: Date
+        let value: Double
+    }
+
+    /// Validated categorical steps (same set as the PWA's --series-1…4,
+    /// dark mode): ember, blue, green, purple — fixed order, never cycled.
+    private static let seriesColors: [Color] = [
+        Color(red: 0.804, green: 0.459, blue: 0.247), // #cd753f
+        Color(red: 0.388, green: 0.537, blue: 0.839), // #6389d6
+        Color(red: 0.278, green: 0.659, blue: 0.369), // #47a85e
+        Color(red: 0.655, green: 0.455, blue: 0.804), // #a774cd
+    ]
+
+    private func familyData(_ series: [ExerciseSeries]) -> [FamilyPoint] {
+        let cutoff: Date? = {
+            switch range {
+            case "3m": return Calendar.current.date(byAdding: .day, value: -92, to: Date())
+            case "1y": return Calendar.current.date(byAdding: .day, value: -366, to: Date())
+            default: return nil
+            }
+        }()
+        let iso = ISO8601DateFormatter()
+        var out: [FamilyPoint] = []
+        for s in series {
+            for p in s.points {
+                guard let d = iso.date(from: String(p.date.prefix(19)) + "Z")
+                        ?? iso.date(from: String(p.date.prefix(10)) + "T00:00:00Z") else { continue }
+                if let cutoff, d < cutoff { continue }
+                let v: Double? = ["best_1rm": p.best_1rm, "best_weight": p.best_weight,
+                                  "best_reps": p.best_reps, "volume": p.volume][metric] ?? nil
+                guard let v else { continue }
+                out.append(FamilyPoint(id: out.count, name: s.name, date: d, value: v))
+            }
+        }
+        return out
+    }
+
+    @ViewBuilder
+    private func familyChart(_ data: [FamilyPoint], names: [String]) -> some View {
+        Chart(data) { p in
+            LineMark(x: .value("Date", p.date), y: .value(metricLabel, p.value),
+                     series: .value("Exercise", p.name))
+                .foregroundStyle(by: .value("Exercise", p.name))
+                .lineStyle(StrokeStyle(lineWidth: 2))
+                .interpolationMethod(.monotone)
+            PointMark(x: .value("Date", p.date), y: .value(metricLabel, p.value))
+                .foregroundStyle(by: .value("Exercise", p.name))
+                .symbolSize(28)
+            if let selDate = nearestFamilyDate(data, to: chartSelection), p.date == selDate {
+                RuleMark(x: .value("Date", selDate))
+                    .foregroundStyle(FG.muted.opacity(0.5))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                    .annotation(position: .top, spacing: 6,
+                                overflowResolution: .init(x: .fit(to: .chart), y: .disabled)) {
+                        familyTip(data, at: selDate, names: names)
+                    }
+            }
+        }
+        .chartXSelection(value: $chartSelection)
+        .chartForegroundStyleScale(domain: names, range: Array(Self.seriesColors.prefix(names.count)))
+        .chartLegend(position: .bottom, spacing: 8) {
+            HStack(spacing: 12) {
+                ForEach(Array(names.enumerated()), id: \.offset) { i, name in
+                    HStack(spacing: 4) {
+                        Circle().fill(Self.seriesColors[i % Self.seriesColors.count])
+                            .frame(width: 7, height: 7)
+                        Text(name).font(.system(size: 10)).foregroundStyle(FG.muted).lineLimit(1)
+                    }
+                }
+            }
+        }
+        .chartYScale(domain: .automatic(includesZero: metric == "volume"))
+        .chartXAxis {
+            AxisMarks(values: .automatic(desiredCount: 4)) { _ in
+                AxisValueLabel(format: .dateTime.day().month(.abbreviated))
+                    .font(.system(size: 10))
+                    .foregroundStyle(FG.muted)
+            }
+        }
+        .chartYAxis {
+            AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { _ in
+                AxisGridLine().foregroundStyle(FG.border.opacity(0.6))
+                AxisValueLabel()
+                    .font(.system(size: 10).monospacedDigit())
+                    .foregroundStyle(FG.muted)
+            }
+        }
+        .frame(height: 220)
+    }
+
+    private func nearestFamilyDate(_ data: [FamilyPoint], to date: Date?) -> Date? {
+        guard let date else { return nil }
+        return data.min { abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date)) }?.date
+    }
+
+    private func familyTip(_ data: [FamilyPoint], at date: Date, names: [String]) -> some View {
+        let rows = data.filter { $0.date == date }
+        return VStack(alignment: .leading, spacing: 2) {
+            Text(date.formatted(.dateTime.day().month(.abbreviated)))
+                .font(.system(size: 10)).foregroundStyle(FG.muted)
+            ForEach(rows) { r in
+                HStack(spacing: 5) {
+                    Circle()
+                        .fill(Self.seriesColors[(names.firstIndex(of: r.name) ?? 0) % Self.seriesColors.count])
+                        .frame(width: 6, height: 6)
+                    Text(metric == "best_reps" ? "\(Int(r.value)) reps" : "\(trim(r.value)) kg")
+                        .font(.system(size: 12, weight: .semibold).monospacedDigit())
+                        .foregroundStyle(.white)
+                }
+            }
+        }
+        .padding(.horizontal, 9).padding(.vertical, 6)
+        .background(RoundedRectangle(cornerRadius: 9).fill(FG.background))
+        .overlay(RoundedRectangle(cornerRadius: 9).stroke(FG.border, lineWidth: 1))
     }
 
     // MARK: training percentages

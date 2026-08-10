@@ -46,6 +46,8 @@ struct WorkoutDetailView: View {
                                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(FG.border, lineWidth: 1))
                         }
 
+                        SessionTimelineView(workout: w)
+
                         ForEach(Array(w.exercises.enumerated()), id: \.offset) { _, ex in
                             VStack(alignment: .leading, spacing: 8) {
                                 HStack {
