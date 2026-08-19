@@ -154,6 +154,12 @@ final class MusicTracker {
         inferred = found
     }
 
+    /// A song must survive this long before the next one starts to count as
+    /// played — skipping through a playlist otherwise logs a spray of
+    /// one-second "plays" (the server applies the same read-side filter to
+    /// data captured before this rule existed).
+    static let skipSurfSeconds: TimeInterval = 15
+
     /// Collapse the event stream into per-song play windows for sync.
     /// started_at back-computes from the playback position when known;
     /// ended_at is the last moment the song was observed (an understatement).
@@ -176,8 +182,15 @@ final class MusicTracker {
                 runs.append(Run(key: key, first: e, start: estimatedStart, lastSeen: e.ts))
             }
         }
+        // Drop skip-surfed tracks: a run whose successor was first observed
+        // within seconds never really played. The track a surf settles on
+        // (and the final run) always survives.
+        let kept = runs.indices.filter { i in
+            i + 1 >= runs.count
+                || runs[i + 1].first.ts.timeIntervalSince(runs[i].first.ts) >= skipSurfSeconds
+        }.map { runs[$0] }
         let iso = ISO8601DateFormatter()
-        return runs.enumerated().map { i, run in
+        return kept.enumerated().map { i, run in
             SyncSong(
                 position: i,
                 title: run.first.title,

@@ -349,8 +349,17 @@ final class WorkoutStore: ObservableObject {
         Task { try? await ForgeAPI.putExerciseNote(id: id, text: trimmed) }
     }
 
+    /// Bounds-safe set lookup for index-addressed view code; nil for a stale
+    /// index (rows can be asked to render one frame after a removal/reorder).
+    func set(_ exIdx: Int, _ setIdx: Int) -> DraftSet? {
+        guard exercises.indices.contains(exIdx),
+              exercises[exIdx].sets.indices.contains(setIdx) else { return nil }
+        return exercises[exIdx].sets[setIdx]
+    }
+
     func removeSet(exIdx: Int, setIdx: Int) {
-        guard exercises[exIdx].sets.indices.contains(setIdx) else { return }
+        guard exercises.indices.contains(exIdx),
+              exercises[exIdx].sets.indices.contains(setIdx) else { return }
         exercises[exIdx].sets.remove(at: setIdx)
     }
 

@@ -148,6 +148,8 @@ export interface PR {
   exercise_name: string
   kind: 'weight' | '1rm' | 'reps'
   value: number
+  /** the actual lifted set behind a 1rm record (value is the estimate) */
+  weight?: number
   reps: number
 }
 

@@ -206,9 +206,32 @@ def serialize_workout(db: Session, workout: Workout, with_previous: bool = True)
                 "ended_at": song.ended_at,
                 "source": song.source,
             }
-            for song in workout.songs
+            for song in visible_songs(workout.songs)
         ],
     }
+
+
+# A song has to survive this long before the next one starts to count as
+# "played" — flipping through a playlist logs a spray of one-second plays
+# that would poison soundtracks and music stats.
+SKIP_SURF_SECONDS = 15
+
+
+def visible_songs(songs) -> list:
+    """Soundtrack entries that actually played, skip-surfing filtered out.
+
+    A track is dropped when the next one started less than SKIP_SURF_SECONDS
+    after it did; the song a surf session settles on always survives. Stored
+    rows are untouched — this is a read-side view, so historical data cleans
+    up the same way as new captures."""
+    ordered = sorted(songs, key=lambda s: s.started_at)
+    return [
+        song
+        for i, song in enumerate(ordered)
+        if i + 1 >= len(ordered)
+        or (ordered[i + 1].started_at - song.started_at).total_seconds()
+        >= SKIP_SURF_SECONDS
+    ]
 
 
 def workout_totals(workout: Workout) -> dict:
@@ -253,6 +276,9 @@ def detect_prs(exercise_name: str, sets, bests: dict) -> list[dict]:
                             "exercise_name": exercise_name,
                             "kind": "1rm",
                             "value": round(one_rm, 1),
+                            # the actual lifted set, so clients can render
+                            # "e1RM 124.7 (85 × 14)" instead of a fictional set
+                            "weight": weight,
                             "reps": s.reps,
                         }
                     )

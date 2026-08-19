@@ -204,7 +204,8 @@ export default function FinishScreen({ summary, unit, onDone }: FinishScreenProp
                   </span>
                   <span className="tnum text-muted-foreground">
                     {pr.kind === 'weight' && `${pr.value} ${unit} × ${pr.reps}`}
-                    {pr.kind === '1rm' && `est. 1RM ${pr.value} ${unit}`}
+                    {pr.kind === '1rm' &&
+                      `est. 1RM ${pr.value} ${unit}${pr.weight ? ` (${pr.weight} × ${pr.reps})` : ''}`}
                     {pr.kind === 'reps' && `${pr.value} reps`}
                   </span>
                 </div>

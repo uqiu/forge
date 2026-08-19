@@ -230,9 +230,27 @@ struct SyncWorkout: Codable {
 struct FinishPR: Codable, Identifiable {
     var id: String { "\(exercise_name ?? "")-\(kind ?? "")-\(value ?? 0)-\(reps ?? 0)" }
     let exercise_name: String?
-    let kind: String?      // "weight" | "reps"
-    let value: Double?
+    let kind: String?      // "weight" | "1rm" | "reps"
+    let value: Double?     // for "1rm" this is the ESTIMATE, not a lifted weight
+    var weight: Double? = nil  // the actual lifted set behind a "1rm" record
     let reps: Int?
+}
+
+/// One PR line, kind-aware — an e1RM record is an estimate and must never
+/// render as if that weight was lifted ("124.7 kg × 14" for an 85 × 14 set).
+func finishPRText(_ pr: FinishPR) -> String {
+    switch pr.kind {
+    case "reps":
+        return "\(Int(pr.value ?? 0)) reps"
+    case "1rm":
+        let est = "e1RM \(trim(pr.value ?? 0)) kg"
+        if let w = pr.weight, let r = pr.reps {
+            return "\(est) (\(trim(w)) × \(r))"
+        }
+        return est
+    default:
+        return "\(trim(pr.value ?? 0)) kg × \(pr.reps ?? 0)"
+    }
 }
 
 struct FinishComparison: Codable {

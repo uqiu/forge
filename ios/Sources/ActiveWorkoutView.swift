@@ -231,7 +231,17 @@ struct ActiveWorkoutView: View {
 
     // MARK: exercise card — the PWA table, ported
 
+    // Rows are index-addressed, and SwiftUI re-evaluates outgoing rows for one
+    // animation frame after a removal or reorder — a stale index must render
+    // nothing, never subscript.
+    @ViewBuilder
     private func exerciseCard(_ i: Int) -> some View {
+        if store.exercises.indices.contains(i) {
+            exerciseCardBody(i)
+        }
+    }
+
+    private func exerciseCardBody(_ i: Int) -> some View {
         let ex = store.exercises[i]
         return VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 8) {
@@ -450,11 +460,15 @@ struct ActiveWorkoutView: View {
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(FG.border, lineWidth: 1))
     }
 
+    @ViewBuilder
     private func setRow(exIdx: Int, setIdx: Int) -> some View {
-        SwipeToDelete {
-            withAnimation(.spring(duration: 0.3)) { store.removeSet(exIdx: exIdx, setIdx: setIdx) }
-        } content: {
-            setRowContent(exIdx: exIdx, setIdx: setIdx)
+        if store.exercises.indices.contains(exIdx),
+           store.exercises[exIdx].sets.indices.contains(setIdx) {
+            SwipeToDelete {
+                withAnimation(.spring(duration: 0.3)) { store.removeSet(exIdx: exIdx, setIdx: setIdx) }
+            } content: {
+                setRowContent(exIdx: exIdx, setIdx: setIdx)
+            }
         }
     }
 
@@ -516,15 +530,16 @@ struct ActiveWorkoutView: View {
                 id: "\(exIdx)-\(setIdx)-w", width: 58,
                 placeholder: store.exercises[exIdx].suggestedWeight.map(trim) ?? "kg",
                 keyboard: .decimalPad,
-                get: { store.exercises[exIdx].sets[setIdx].weight.map(trim) ?? "" },
+                get: { store.set(exIdx, setIdx)?.weight.map(trim) ?? "" },
                 set: { txt in
+                    guard store.set(exIdx, setIdx) != nil else { return }
                     store.exercises[exIdx].sets[setIdx].weight =
                         Double(txt.replacingOccurrences(of: ",", with: "."))
                 }
             )
 
             valueField(
-                id: "\(exIdx)-\(setIdx)-r", width: 48,
+                id: "\(exIdx)-\(setIdx)-r", width: 56,
                 placeholder: {
                     let ex = store.exercises[exIdx]
                     if set.amrap { return set.plannedReps.map { "\($0)+" } ?? "max" }
@@ -533,13 +548,16 @@ struct ActiveWorkoutView: View {
                 }(),
                 keyboard: .numberPad,
                 accent: set.amrap,
-                get: { store.exercises[exIdx].sets[setIdx].reps.map(String.init) ?? "" },
-                set: { txt in store.exercises[exIdx].sets[setIdx].reps = Int(txt) }
+                get: { store.set(exIdx, setIdx)?.reps.map(String.init) ?? "" },
+                set: { txt in
+                    guard store.set(exIdx, setIdx) != nil else { return }
+                    store.exercises[exIdx].sets[setIdx].reps = Int(txt)
+                }
             )
 
             // Effort column — RPE only now, so it matches its header
             Menu {
-                ForEach([7.0, 8, 8.5, 9, 9.5, 10], id: \.self) { r in
+                ForEach([6.0, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10], id: \.self) { r in
                     Button("RPE \(trim(r)) \(set.rpe == r ? "✓" : "")") { store.exercises[exIdx].sets[setIdx].rpe = r }
                 }
                 if set.rpe != nil {

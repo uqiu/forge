@@ -8,7 +8,7 @@ export interface ShareCardData {
   duration_seconds: number
   total_volume: number
   total_sets: number
-  prs: { exercise_name: string; kind: string; value: number; reps: number }[]
+  prs: { exercise_name: string; kind: string; value: number; weight?: number; reps: number }[]
   comparison?: { prev_volume: number; prev_date: string } | null
   date?: Date
   music?: { songs: number; top_artist: string | null; pr_song: string | null }
@@ -173,7 +173,7 @@ function drawCard(summary: ShareCardData, unit: string): HTMLCanvasElement {
         pr.kind === 'weight'
           ? `${pr.value} ${unit} × ${pr.reps}`
           : pr.kind === '1rm'
-            ? `est. 1RM ${pr.value} ${unit}`
+            ? `est. 1RM ${pr.value} ${unit}${pr.weight ? ` (${pr.weight} × ${pr.reps})` : ''}`
             : `${pr.value} reps`
       ctx.fillText(value, W - PAD - 32, y + 32)
       ctx.textAlign = 'left'

@@ -23,7 +23,7 @@ from backend.models import (
 )
 from backend.genres import enrich_genres
 from backend.program_schemes import SCHEMES
-from backend.serializers import epley_1rm, workout_totals
+from backend.serializers import epley_1rm, visible_songs, workout_totals
 
 router = APIRouter(prefix="/stats", tags=["stats"])
 
@@ -132,12 +132,24 @@ def music_stats(user: User = Depends(get_current_user), db: Session = Depends(ge
     PRs go down. Song identity = apple_id, falling back to title|artist, so
     the same track streamed and local aggregates together."""
     enrich_genres(db, user.id)
-    rows = db.execute(
+    raw_rows = db.execute(
         select(WorkoutSong, Workout)
         .join(Workout, WorkoutSong.workout_id == Workout.id)
         .where(Workout.owner_id == user.id, Workout.finished_at.is_not(None))
         .order_by(Workout.started_at)
     ).all()
+    # Skip-surfed tracks don't count as listening (same read-side filter the
+    # soundtrack cards apply)
+    songs_by_workout: dict[int, list] = defaultdict(list)
+    workout_by_id: dict[int, Workout] = {}
+    for song, w in raw_rows:
+        songs_by_workout[w.id].append(song)
+        workout_by_id[w.id] = w
+    rows = [
+        (song, workout_by_id[wid])
+        for wid in sorted(songs_by_workout, key=lambda i: workout_by_id[i].started_at)
+        for song in visible_songs(songs_by_workout[wid])
+    ]
     empty = {
         "workouts": 0, "songs": 0, "unique_songs": 0, "artists": 0,
         "top_artists": [], "top_songs": [], "pr_songs": [],

@@ -132,9 +132,7 @@ struct FinishSummaryView: View {
                     Text(pr.exercise_name ?? "").font(.system(size: 13)).foregroundStyle(.white)
                         .lineLimit(1)
                     Spacer()
-                    Text(pr.kind == "reps"
-                         ? "\(Int(pr.value ?? 0)) reps"
-                         : "\(trim(pr.value ?? 0)) kg × \(pr.reps ?? 0)")
+                    Text(finishPRText(pr))
                         .font(.system(size: 13, weight: .semibold).monospacedDigit())
                         .foregroundStyle(.white)
                 }
@@ -408,9 +406,7 @@ struct ShareCard: View {
                                 .font(.system(size: 12)).foregroundStyle(.white)
                                 .lineLimit(1)
                             Spacer()
-                            Text(pr.kind == "reps"
-                                 ? "\(Int(pr.value ?? 0)) reps"
-                                 : "\(trim(pr.value ?? 0)) kg × \(pr.reps ?? 0)")
+                            Text(finishPRText(pr))
                                 .font(.system(size: 12, weight: .semibold).monospacedDigit())
                                 .foregroundStyle(.white)
                         }

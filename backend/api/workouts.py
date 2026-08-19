@@ -36,6 +36,7 @@ from backend.serializers import (
     previous_sets,
     recompute_prs,
     serialize_workout,
+    visible_songs,
     workout_totals,
 )
 
@@ -129,8 +130,9 @@ def _finish_summary(db: Session, user: User, workout: Workout, prs: list) -> dic
     # "12 songs · mostly Gojira" on the finish screen — plus the song that
     # was playing when a PR went down, which is the line people share
     music = None
-    if workout.songs:
-        artists = [s.artist for s in workout.songs if s.artist]
+    songs = visible_songs(workout.songs) if workout.songs else []
+    if songs:
+        artists = [s.artist for s in songs if s.artist]
         top_artist = max(set(artists), key=artists.count) if artists else None
 
         def _naive(dt):
@@ -143,13 +145,13 @@ def _finish_summary(db: Session, user: User, workout: Workout, prs: list) -> dic
             if s.is_pr and s.completed_at is not None
         ]
         pr_song = None
-        for song in workout.songs:
+        for song in songs:
             start = _naive(song.started_at)
             end = _naive(song.ended_at) if song.ended_at else start
             if any(start <= t <= end for t in pr_times):
                 pr_song = song.title + (f" — {song.artist}" if song.artist else "")
                 break
-        music = {"songs": len(workout.songs), "top_artist": top_artist, "pr_song": pr_song}
+        music = {"songs": len(songs), "top_artist": top_artist, "pr_song": pr_song}
 
     return {
         "id": workout.id,
@@ -433,8 +435,12 @@ def _recent_session_sets(
 
 
 def _stalled(sessions: list[list[tuple[float, int]]], rep_max: int) -> float | None:
-    """Three sessions at the same top weight, none completing the rep target
-    on every set -> return that weight, else None."""
+    """Three sessions at the same top weight with no rep progress and the
+    target never completed on every set -> return that weight, else None.
+
+    Creeping up inside the rep range (34 -> 34 -> 35 total reps) is double
+    progression working, not a stall — any rep gain across the window
+    cancels the deload hint."""
     if len(sessions) < 3:
         return None
     tops = [max((w for w, _ in sess), default=0.0) for sess in sessions]
@@ -443,6 +449,9 @@ def _stalled(sessions: list[list[tuple[float, int]]], rep_max: int) -> float | N
     for sess in sessions:
         if all(reps >= rep_max for _, reps in sess):
             return None  # at least one session hit the target across the board
+    totals = [sum(reps for _, reps in sess) for sess in reversed(sessions)]
+    if any(later > earlier for earlier, later in zip(totals, totals[1:])):
+        return None  # reps still climbing — progressing, not stalled
     return tops[0]
 
 
