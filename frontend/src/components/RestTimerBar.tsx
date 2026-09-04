@@ -2,6 +2,7 @@ import { FastForward, Minus, Plus, Timer, Zap } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { restTimer, useRestTimer } from '../lib/timer'
 import { formatClock } from '../lib/format'
+import { t } from '../lib/i18n'
 import { cn } from '../lib/utils'
 
 const GO_MS = 2600
@@ -18,8 +19,8 @@ export default function RestTimerBar() {
   const showGo = timer == null && sinceEnd < GO_MS
   useEffect(() => {
     if (!showGo) return
-    const t = setTimeout(() => setTick((v) => v + 1), GO_MS - sinceEnd + 50)
-    return () => clearTimeout(t)
+    const id = setTimeout(() => setTick((v) => v + 1), GO_MS - sinceEnd + 50)
+    return () => clearTimeout(id)
   }, [showGo, sinceEnd])
 
   const visible = timer != null || showGo
@@ -50,7 +51,7 @@ export default function RestTimerBar() {
         )}
         {showGo ? (
           <div className="relative flex items-center justify-center gap-2 px-3 py-3 font-semibold text-success">
-            <Zap size={18} className="fill-current" /> Rest over — go!
+            <Zap size={18} className="fill-current" /> {t('Rest over — go!')}
           </div>
         ) : (
           timer && (
@@ -63,14 +64,14 @@ export default function RestTimerBar() {
                 <button
                   onClick={() => restTimer.adjust(-15)}
                   className="touch-feedback flex h-9 items-center gap-0.5 rounded-lg bg-secondary px-2.5 text-sm font-semibold"
-                  aria-label="Subtract 15 seconds"
+                  aria-label={t('Subtract 15 seconds')}
                 >
                   <Minus size={14} /> 15
                 </button>
                 <button
                   onClick={() => restTimer.adjust(15)}
                   className="touch-feedback flex h-9 items-center gap-0.5 rounded-lg bg-secondary px-2.5 text-sm font-semibold"
-                  aria-label="Add 15 seconds"
+                  aria-label={t('Add 15 seconds')}
                 >
                   <Plus size={14} /> 15
                 </button>
@@ -78,7 +79,7 @@ export default function RestTimerBar() {
                   onClick={() => restTimer.skip()}
                   className="touch-feedback flex h-9 items-center gap-1 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground"
                 >
-                  <FastForward size={14} /> Skip
+                  <FastForward size={14} /> {t('Skip')}
                 </button>
               </div>
             </div>

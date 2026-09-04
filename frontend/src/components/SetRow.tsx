@@ -1,6 +1,7 @@
 import { Check, Trophy } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { formatSetWeight } from '../lib/format'
+import { t } from '../lib/i18n'
 import type { PastSet, SetEntry } from '../lib/types'
 import { cn } from '../lib/utils'
 
@@ -84,15 +85,15 @@ export default function SetRow({
   // finger. Animation only on release. The Delete label rides the row's edge
   // like iOS Mail: offscreen right at rest, pinned once the reveal is full.
   const setX = (px: number, animate: boolean) => {
-    const t = animate ? 'transform 0.3s var(--spring)' : 'none'
+    const transition = animate ? 'transform 0.3s var(--spring)' : 'none'
     const el = rowRef.current
     if (el) {
-      el.style.transition = t
+      el.style.transition = transition
       el.style.transform = `translateX(${px}px)`
     }
     const label = labelRef.current
     if (label) {
-      label.style.transition = t
+      label.style.transition = transition
       label.style.transform = `translateX(${px - REVEAL}px)`
     }
   }
@@ -246,7 +247,7 @@ export default function SetRow({
           className="absolute inset-y-0 right-0 flex w-20 items-center justify-center text-sm font-semibold text-white"
           style={{ transform: 'translateX(80px)' }}
         >
-          Delete
+          {t('Delete')}
         </span>
       </button>
       <div
@@ -267,19 +268,19 @@ export default function SetRow({
         )}
         <button
           onClick={onMarker}
-          aria-label="Mark set"
+          aria-label={t('Mark set')}
           className="touch-feedback tnum rounded-md py-1 text-center text-sm font-semibold text-muted-foreground"
         >
           {set.is_pr ? (
             <Trophy size={15} className="mx-auto text-record" />
           ) : set.is_warmup ? (
-            <span className="text-warning">W</span>
+            <span className="text-warning">{t('badge|W')}</span>
           ) : set.set_type === 'drop' ? (
-            <span className="text-primary">D</span>
+            <span className="text-primary">{t('badge|D')}</span>
           ) : set.set_type === 'failure' ? (
-            <span className="text-destructive">F</span>
+            <span className="text-destructive">{t('badge|F')}</span>
           ) : set.set_type === 'amrap' ? (
-            <span className="text-record">A</span>
+            <span className="text-record">{t('badge|A')}</span>
           ) : (
             number
           )}
@@ -300,7 +301,7 @@ export default function SetRow({
             fallbackWeight != null && fallbackWeight !== 0
               ? String(fallbackWeight)
               : bodyweight
-                ? 'BW'
+                ? t('BW')
                 : unit
           }
           className="tnum h-9 rounded-md border border-input bg-background px-1 text-center text-base font-medium outline-none placeholder:text-muted-foreground/50 focus:ring-2 focus:ring-ring"
@@ -315,12 +316,12 @@ export default function SetRow({
           enterKeyHint="done"
           placeholder={
             isAmrap
-              ? 'max'
+              ? t('placeholder|max')
               : fallbackReps != null
                 ? String(fallbackReps)
                 : progression?.repMin != null && progression?.repMax != null
                   ? `${progression.repMin}–${progression.repMax}`
-                  : 'reps'
+                  : t('placeholder|reps')
           }
           className={cn(
             'tnum h-9 rounded-md border border-input bg-background px-1 text-center text-base font-medium outline-none placeholder:text-muted-foreground/50 focus:ring-2 focus:ring-ring',
@@ -346,7 +347,7 @@ export default function SetRow({
         <button
           onClick={toggle}
           disabled={!set.is_completed && !canComplete}
-          aria-label={set.is_completed ? 'Mark set incomplete' : 'Complete set'}
+          aria-label={set.is_completed ? t('Mark set incomplete') : t('Complete set')}
           className={cn(
             'touch-feedback mx-auto flex h-9 w-9 items-center justify-center rounded-lg border transition-colors',
             set.is_completed

@@ -2,6 +2,7 @@ import { Minus, Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import Sheet from './Sheet'
 import { useAuth } from '../contexts/AuthContext'
+import { t } from '../lib/i18n'
 import { cn } from '../lib/utils'
 
 // IWF-style colors, softened a touch so they sit inside the theme
@@ -95,13 +96,13 @@ export default function PlateCalculator({ open, onClose, initialWeight, unit }: 
   }
 
   return (
-    <Sheet open={open} onClose={onClose} title="Plate calculator">
+    <Sheet open={open} onClose={onClose} title={t('Plate calculator')}>
       <div className="flex flex-col gap-4 pt-1">
         <div className="flex items-center justify-center gap-3">
           <button
             onClick={() => adjust(-step)}
             className="touch-feedback rounded-lg bg-secondary p-2.5"
-            aria-label={`Minus ${step}`}
+            aria-label={t('Minus {step}', { step })}
           >
             <Minus size={18} />
           </button>
@@ -118,7 +119,7 @@ export default function PlateCalculator({ open, onClose, initialWeight, unit }: 
           <button
             onClick={() => adjust(step)}
             className="touch-feedback rounded-lg bg-secondary p-2.5"
-            aria-label={`Plus ${step}`}
+            aria-label={t('Plus {step}', { step })}
           >
             <Plus size={18} />
           </button>
@@ -143,19 +144,19 @@ export default function PlateCalculator({ open, onClose, initialWeight, unit }: 
 
         <div className="text-center text-sm">
           {target < bar ? (
-            <span className="text-muted-foreground">Below bar weight</span>
+            <span className="text-muted-foreground">{t('Below bar weight')}</span>
           ) : counts.length === 0 ? (
             <span className="text-muted-foreground">
-              {bar > 0 ? 'Empty bar' : 'Nothing to plate'}
+              {bar > 0 ? t('Empty bar') : t('Nothing to plate')}
             </span>
           ) : (
             <span className="tnum font-medium">
-              Per side: {counts.map(([w, n]) => `${n} × ${w}`).join('  ·  ')}
+              {t('Per side:')} {counts.map(([w, n]) => `${n} × ${w}`).join('  ·  ')}
             </span>
           )}
           {remainder > 0 && target >= bar && (
             <p className="tnum mt-1 text-xs text-warning">
-              {remainder} {unit} can’t be plated with your plates
+              {t('{amount} {unit} can’t be plated with your plates', { amount: remainder, unit })}
             </p>
           )}
         </div>
@@ -163,11 +164,11 @@ export default function PlateCalculator({ open, onClose, initialWeight, unit }: 
         {target > bar && (
           <div>
             <h3 className="mb-1.5 text-sm font-semibold tracking-wide text-muted-foreground uppercase">
-              Warm-up ramp
+              {t('Warm-up ramp')}
             </h3>
             <div className="flex flex-col gap-1">
               {[
-                ...(bar > 0 ? [{ label: 'Empty bar', weight: bar, reps: 10 }] : []),
+                ...(bar > 0 ? [{ label: t('Empty bar'), weight: bar, reps: 10 }] : []),
                 { label: '40%', weight: Math.max(bar, Math.round((target * 0.4) / step) * step), reps: 5 },
                 { label: '60%', weight: Math.max(bar, Math.round((target * 0.6) / step) * step), reps: 3 },
                 { label: '80%', weight: Math.max(bar, Math.round((target * 0.8) / step) * step), reps: 2 },
@@ -182,7 +183,7 @@ export default function PlateCalculator({ open, onClose, initialWeight, unit }: 
                   </div>
                 ))}
               <div className="flex items-center justify-between rounded-lg bg-accent-soft px-3 py-1.5 text-sm">
-                <span className="font-medium text-primary">Working set</span>
+                <span className="font-medium text-primary">{t('Working set')}</span>
                 <span className="tnum font-semibold text-primary">
                   {target} {unit}
                 </span>
@@ -192,7 +193,7 @@ export default function PlateCalculator({ open, onClose, initialWeight, unit }: 
         )}
 
         <label className="flex items-center justify-between text-sm font-medium">
-          Bar weight
+          {t('Bar weight')}
           <select
             value={bar}
             onChange={(e) => saveConfig({ ...config, bar: Number(e.target.value) })}
@@ -200,7 +201,7 @@ export default function PlateCalculator({ open, onClose, initialWeight, unit }: 
           >
             {bars.map((b) => (
               <option key={b} value={b}>
-                {b === 0 ? 'Not counted' : `${b} ${unit}`}
+                {b === 0 ? t('Not counted') : `${b} ${unit}`}
               </option>
             ))}
           </select>
@@ -208,7 +209,7 @@ export default function PlateCalculator({ open, onClose, initialWeight, unit }: 
 
         <div>
           <h3 className="mb-1.5 text-sm font-semibold tracking-wide text-muted-foreground uppercase">
-            Your plates
+            {t('Your plates')}
           </h3>
           <div className="flex flex-wrap gap-1.5">
             {allPlates.map((p) => {

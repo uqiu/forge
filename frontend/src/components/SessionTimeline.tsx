@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { formatClock, formatSetWeight, formatTime, parseUTC } from '../lib/format'
+import { getLocale, t, tc } from '../lib/i18n'
 import type { Workout } from '../lib/types'
 
 // Gaps outside this band are exercise changes / interruptions, not rest —
@@ -64,11 +65,11 @@ export default function SessionTimeline({ workout, unit }: { workout: Workout; u
       const times: number[] = []
       for (const s of we.sets) {
         if (!s.completed_at || s.reps == null) continue
-        const t = parseUTC(s.completed_at).getTime()
-        times.push(t)
+        const at = parseUTC(s.completed_at).getTime()
+        times.push(at)
         dots.push({
-          x: x(t),
-          line1: `${formatSetWeight(s.weight, unit)} × ${s.reps}${s.rpe != null ? ` @${s.rpe}` : ''}${s.is_pr ? ' · PR' : ''}${s.is_warmup ? ' · warm-up' : ''}`,
+          x: x(at),
+          line1: `${formatSetWeight(s.weight, unit)} × ${s.reps}${s.rpe != null ? ` @${s.rpe}` : ''}${s.is_pr ? ` · ${t('PR')}` : ''}${s.is_warmup ? ` · ${t('warm-up')}` : ''}`,
           line2: formatTime(s.completed_at),
           warmup: !!s.is_warmup,
           pr: !!s.is_pr,
@@ -110,7 +111,9 @@ export default function SessionTimeline({ workout, unit }: { workout: Workout; u
       ticks.push({ x: (m * 60_000 * 100) / span, label: `${m}` })
     }
     return { lanes, songs, ticks }
-  }, [workout, unit])
+    // getLocale(): the dot tooltips bake in translated copy, so a language
+    // switch has to rebuild the model, not just repaint around it.
+  }, [workout, unit, getLocale()])
 
   if (!model) return null
 
@@ -118,18 +121,18 @@ export default function SessionTimeline({ workout, unit }: { workout: Workout; u
     <section className="animate-card-appear mt-3 rounded-xl border bg-card p-4">
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-          Timeline
+          {t('Timeline')}
         </span>
-        <span className="text-[11px] text-muted-foreground">minutes into the session</span>
+        <span className="text-[11px] text-muted-foreground">{t('minutes into the session')}</span>
       </div>
       <div className="mt-3 flex flex-col gap-1">
         {model.lanes.map((lane, li) => (
           <div key={lane.name}>
             <div className="flex items-baseline justify-between gap-2">
-              <span className="min-w-0 truncate text-xs font-medium">{lane.name}</span>
+              <span className="min-w-0 truncate text-xs font-medium">{tc(lane.name)}</span>
               {lane.medianGap != null && (
                 <span className="tnum shrink-0 text-[11px] text-muted-foreground">
-                  ~{formatClock(lane.medianGap)} between sets
+                  {t('~{clock} between sets', { clock: formatClock(lane.medianGap) })}
                 </span>
               )}
             </div>
@@ -194,19 +197,19 @@ export default function SessionTimeline({ workout, unit }: { workout: Workout; u
       )}
 
       <div className="relative mt-1 h-4 border-t border-border">
-        {model.ticks.map((t) => (
+        {model.ticks.map((tick) => (
           <span
-            key={t.label}
+            key={tick.label}
             className="tnum absolute top-0.5 -translate-x-1/2 text-[10px] text-muted-foreground"
-            style={{ left: `${t.x}%` }}
+            style={{ left: `${tick.x}%` }}
           >
-            {t.label}
+            {tick.label}
           </span>
         ))}
       </div>
       <p className="mt-1.5 text-[11px] text-muted-foreground">
-        ● set · ○ warm-up · <span className="text-record">◆</span> PR
-        {model.songs.length > 0 && ' · bottom strip: what was playing'}
+        {t('● set · ○ warm-up ·')} <span className="text-record">◆</span> {t('PR')}
+        {model.songs.length > 0 && ` · ${t('bottom strip: what was playing')}`}
       </p>
     </section>
   )
