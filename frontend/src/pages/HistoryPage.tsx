@@ -9,12 +9,20 @@ import { useAuth } from '../contexts/AuthContext'
 import { api } from '../lib/api'
 import { getCached, useCachedState } from '../lib/dataCache'
 import { formatDuration, formatRelativeDate, formatVolume, parseUTC } from '../lib/format'
+import { intlLocale, t, tc } from '../lib/i18n'
 import type { WorkoutSummary } from '../lib/types'
 
 const PAGE = 20
 
 function monthLabel(value: string): string {
-  return parseUTC(value).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+  return parseUTC(value).toLocaleDateString(intlLocale(), { month: 'long', year: 'numeric' })
+}
+
+/** The API sends these pre-joined as "3 × Bench Press" — only the name part is
+ *  catalog data, so translate that and leave the count alone. */
+function summaryLabel(summary: string): string {
+  const match = summary.match(/^(\d+ × )(.+)$/)
+  return match ? match[1] + tc(match[2]) : tc(summary)
 }
 
 function groupByMonth(workouts: WorkoutSummary[]): { month: string; workouts: WorkoutSummary[] }[] {
@@ -52,11 +60,11 @@ export default function HistoryPage() {
   return (
     <div className="safe-top px-4">
       <header className="flex items-center justify-between pt-6 pb-4">
-        <h1 className="text-3xl">History</h1>
+        <h1 className="text-3xl">{t('History')}</h1>
         <Segmented<'list' | 'calendar'>
           options={[
-            { value: 'list', label: 'List' },
-            { value: 'calendar', label: 'Calendar' },
+            { value: 'list', label: t('List') },
+            { value: 'calendar', label: t('Calendar') },
           ]}
           value={view}
           onChange={setView}
@@ -69,8 +77,8 @@ export default function HistoryPage() {
       ) : loading && workouts.length === 0 ? (
         <CardListSkeleton count={4} className="md:grid-cols-2" />
       ) : workouts.length === 0 ? (
-        <EmptyState title="No workouts yet">
-          Your finished workouts will show up here.
+        <EmptyState title={t('No workouts yet')}>
+          {t('Your finished workouts will show up here.')}
         </EmptyState>
       ) : (
         <div className="flex flex-col gap-4">
@@ -91,7 +99,7 @@ export default function HistoryPage() {
                     style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}
                   >
                     <div className="flex items-baseline justify-between gap-2">
-                      <h3 className="min-w-0 truncate text-lg">{w.name}</h3>
+                      <h3 className="min-w-0 truncate text-lg">{tc(w.name)}</h3>
                       <span className="flex shrink-0 items-center gap-1 text-sm text-muted-foreground">
                         <CalendarDays size={14} /> {formatRelativeDate(w.started_at)}
                       </span>
@@ -105,12 +113,15 @@ export default function HistoryPage() {
                       </span>
                       {w.pr_count > 0 && (
                         <span className="tnum flex items-center gap-1 text-record">
-                          <Trophy size={14} /> {w.pr_count} PR{w.pr_count > 1 ? 's' : ''}
+                          <Trophy size={14} />{' '}
+                          {w.pr_count > 1
+                            ? t('{n} PRs', { n: w.pr_count })
+                            : t('{n} PR', { n: w.pr_count })}
                         </span>
                       )}
                     </div>
                     <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
-                      {w.exercise_summaries.join(', ')}
+                      {w.exercise_summaries.map(summaryLabel).join(t('list|, '))}
                     </p>
                   </button>
                 ))}
@@ -123,7 +134,7 @@ export default function HistoryPage() {
               disabled={loading}
               className="touch-feedback rounded-lg py-3 text-sm font-semibold text-primary disabled:opacity-50"
             >
-              {loading ? 'Loading…' : 'Load more'}
+              {loading ? t('Loading…') : t('Load more')}
             </button>
           )}
         </div>

@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { api } from '../lib/api'
 import { useCachedState } from '../lib/dataCache'
 import { formatRelativeDate } from '../lib/format'
+import { t, tc } from '../lib/i18n'
 import { makeMatcher } from '../lib/search'
 
 interface RecordRow {
@@ -40,11 +41,11 @@ export default function RecordsPage() {
         <button
           onClick={() => navigate(-1)}
           className="touch-feedback -ml-2 rounded-full p-2 text-muted-foreground"
-          aria-label="Back"
+          aria-label={t('Back')}
         >
           <ChevronLeft size={24} />
         </button>
-        <h1 className="text-2xl">Records</h1>
+        <h1 className="text-2xl">{t('Records')}</h1>
       </header>
 
       <div className="relative mb-3">
@@ -52,7 +53,7 @@ export default function RecordsPage() {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search records"
+          placeholder={t('Search records')}
           enterKeyHint="search"
           className="h-11 w-full rounded-lg border border-input bg-card pr-3 pl-10 text-base outline-none focus:ring-2 focus:ring-ring"
         />
@@ -66,7 +67,7 @@ export default function RecordsPage() {
         </div>
       ) : filtered.length === 0 ? (
         <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-          {query ? 'No matching records.' : 'Records appear once you finish workouts.'}
+          {query ? t('No matching records.') : t('Records appear once you finish workouts.')}
         </p>
       ) : (
         <ul className="divide-y divide-border overflow-hidden rounded-xl border bg-card">
@@ -77,9 +78,11 @@ export default function RecordsPage() {
                 className="touch-feedback w-full px-4 py-3 text-left"
               >
                 <div className="flex items-baseline justify-between gap-2">
-                  <span className="min-w-0 truncate font-medium">{r.name}</span>
+                  <span className="min-w-0 truncate font-medium">{tc(r.name)}</span>
                   <span className="shrink-0 text-xs text-muted-foreground">
-                    {r.sessions} session{r.sessions === 1 ? '' : 's'}
+                    {r.sessions === 1
+                      ? t('{n} session', { n: r.sessions })
+                      : t('{n} sessions', { n: r.sessions })}
                   </span>
                 </div>
                 <div className="tnum mt-1 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-sm text-muted-foreground">
@@ -90,7 +93,9 @@ export default function RecordsPage() {
                     </span>
                   )}
                   {r.best_1rm && <span>1RM {r.best_1rm.value} {unit}</span>}
-                  {r.best_reps && <span>{r.best_reps.reps} reps (BW)</span>}
+                  {r.best_reps && (
+                    <span>{t('{n} reps (BW)', { n: r.best_reps.reps })}</span>
+                  )}
                   {r.best_weight && (
                     <span className="text-muted-foreground/70">
                       {formatRelativeDate(r.best_weight.date)}
