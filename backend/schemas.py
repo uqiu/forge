@@ -71,6 +71,7 @@ class ExerciseCreate(BaseModel):
     grip: str | None = Field(default=None, max_length=24)
     grip_width: str | None = Field(default=None, max_length=16)
     attachment: str | None = Field(default=None, max_length=24)
+    load_mode: Literal["single", "pair"] | None = None
 
 
 class ExerciseOut(BaseModel):
@@ -81,6 +82,9 @@ class ExerciseOut(BaseModel):
     grip: str | None = None
     grip_width: str | None = None
     attachment: str | None = None
+    # 'single' | 'pair' | None — the reader's effective value, i.e. their own
+    # override where they set one, otherwise the catalog's default.
+    load_mode: str | None = None
     variant_of_id: int | None = None
     is_custom: bool
     last_used: datetime | None = None

@@ -15,6 +15,10 @@ export interface User {
   webhook_url: string | null
 }
 
+/** One implement or two — a goblet squat versus a lateral raise. Display
+ *  only: the weight logged is always one implement's either way. */
+export type LoadMode = 'single' | 'pair'
+
 export interface Exercise {
   id: number
   name: string
@@ -23,6 +27,10 @@ export interface Exercise {
   grip?: string | null
   grip_width?: string | null
   attachment?: string | null
+  /** The reader's own override where they set one, else the catalog default. */
+  load_mode?: LoadMode | null
+  /** The catalog default, so the editor can tell an override from a default. */
+  load_mode_default?: LoadMode | null
   variant_of_id?: number | null
   is_custom: boolean
   last_used?: string | null
@@ -83,6 +91,7 @@ export interface WorkoutExercise {
   name: string
   muscle_group: string
   equipment: string
+  load_mode: LoadMode | null
   note: string
   position: number
   rest_seconds: number | null
@@ -184,6 +193,7 @@ export interface ExerciseStats {
     grip_width?: string | null
     attachment?: string | null
     equipment?: string
+    load_mode?: LoadMode | null
   }[]
   records: {
     best_weight: RecordSet | null

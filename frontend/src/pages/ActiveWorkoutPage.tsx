@@ -293,6 +293,11 @@ export default function ActiveWorkoutPage() {
                       className="touch-feedback min-w-0 flex-1 truncate text-left text-base font-semibold text-primary"
                     >
                       {tc(we.name)}
+                      {we.load_mode && (
+                        <span className="ml-2 rounded bg-secondary px-1.5 py-0.5 align-middle text-[10px] font-semibold tracking-wide text-muted-foreground">
+                          {t(`load|${we.load_mode}`)}
+                        </span>
+                      )}
                       {we.superset && (
                         <span className="ml-2 rounded bg-accent-soft px-1.5 py-0.5 align-middle text-[10px] font-semibold tracking-wide text-primary uppercase">
                           {t('Superset {label}', { label: we.superset })}
@@ -378,7 +383,13 @@ export default function ActiveWorkoutPage() {
                   >
                     <span className="text-center">{t('col|Set')}</span>
                     <span className="text-center">{t('col|Previous')}</span>
-                    <span className="text-center">{user?.unit ?? 'kg'}</span>
+                    {/* The number entered is one implement's weight; say so
+                        where a pair would otherwise make it ambiguous. */}
+                    <span className="text-center">
+                      {we.load_mode
+                        ? t('{unit} each', { unit: user?.unit ?? 'kg' })
+                        : (user?.unit ?? 'kg')}
+                    </span>
                     <span className="text-center">{t('col|Reps')}</span>
                     {rpeEnabled && <span className="text-center">RPE</span>}
                     <span />

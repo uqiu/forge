@@ -24,7 +24,12 @@ import type { MuscleRegion } from '../lib/bodyPaths'
 import { formatRelativeDate, formatSetWeight, formatShortDate, formatVolume, parseUTC } from '../lib/format'
 import { t, tc, tm } from '../lib/i18n'
 import { musclesFor } from '../lib/muscles'
-import type { ExerciseStats } from '../lib/types'
+import { toast } from '../lib/toast'
+import type { ExerciseStats, LoadMode } from '../lib/types'
+
+// Held in the hands, so "one or two?" is a real question. A barbell is one bar
+// and a machine is one stack, whatever the handles look like.
+const FREE_WEIGHT = new Set(['Dumbbell', 'Kettlebell'])
 
 // Individual muscles, not the coarse groups the catalog names — hence their
 // own key namespace ("Chest" the muscle vs "Chest" the muscle group).
@@ -199,6 +204,7 @@ export default function ExerciseDetailPage() {
           <p className="text-sm text-muted-foreground">
             {tc(exercise.muscle_group)} · {tc(exercise.equipment)}
             {exercise.grip && ` · ${t('{grip} grip', { grip: tc(exercise.grip) })}`}
+            {exercise.load_mode && ` · ${t(`load|${exercise.load_mode}`)}`}
             {exercise.is_custom && ` · ${t('Custom')}`}
           </p>
         </div>
@@ -238,6 +244,35 @@ export default function ExerciseDetailPage() {
         rows={1}
         className="mt-1 mb-2 w-full resize-none overflow-hidden rounded-xl border border-input bg-card px-3.5 py-2.5 text-sm outline-none placeholder:text-muted-foreground/60 focus:ring-2 focus:ring-ring"
       />
+
+      {/* Free weights only — a barbell or a cable stack has no implement count
+          to argue about. Editable even on a seed exercise, because whether a
+          split squat holds one dumbbell or two is the lifter's call. */}
+      {FREE_WEIGHT.has(exercise.equipment) && (
+        <div className="mb-2 flex items-center justify-between gap-3 rounded-xl border bg-card px-3.5 py-2.5">
+          <span className="min-w-0 text-sm font-medium">
+            {t('Loaded with')}
+            <span className="block text-xs font-normal text-muted-foreground">
+              {t('The weight you log is always one implement’s')}
+            </span>
+          </span>
+          <Segmented<LoadMode>
+            options={[
+              { value: 'single', label: t('load|single') },
+              { value: 'pair', label: t('load|pair') },
+            ]}
+            value={exercise.load_mode ?? 'pair'}
+            onChange={(mode) => {
+              setStats({ ...stats, exercise: { ...exercise, load_mode: mode } })
+              api(`/exercises/${exercise.id}/load-mode`, {
+                method: 'PUT',
+                body: { load_mode: mode },
+              }).catch(() => toast(t('Could not save how this exercise is loaded')))
+            }}
+            className="w-40 shrink-0"
+          />
+        </div>
+      )}
 
       {variations.length > 0 && (
         <div className="scrollbar-none -mx-1 flex gap-1.5 overflow-x-auto px-1 pt-1 pb-2">

@@ -453,6 +453,7 @@ export default function ExercisePicker({
                         <span className="block truncate font-medium">{tc(head.name)}</span>
                         <span className="block text-sm text-muted-foreground">
                           {tc(head.muscle_group)} · {tc(head.equipment)}
+                          {head.load_mode && ` · ${t(`load|${head.load_mode}`)}`}
                           {head.attachment && ` · ${tc(head.attachment)}`}
                           {head.grip && ` · ${tc(head.grip)}`}
                           {head.is_custom && ` · ${t('Custom')}`}

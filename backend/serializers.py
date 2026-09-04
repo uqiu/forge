@@ -112,8 +112,8 @@ def superset_labels(exercises) -> tuple[dict, dict]:
 
 def serialize_workout(db: Session, workout: Workout, with_previous: bool = True) -> dict:
     labels, last_in_group = superset_labels(workout.exercises)
-    notes = {
-        n.exercise_id: n.text
+    personal = {
+        n.exercise_id: n
         for n in db.execute(
             select(ExerciseNote).where(
                 ExerciseNote.user_id == workout.owner_id,
@@ -124,6 +124,7 @@ def serialize_workout(db: Session, workout: Workout, with_previous: bool = True)
     exercises = []
     for we in workout.exercises:
         exercise = db.get(Exercise, we.exercise_id)
+        mine = personal.get(we.exercise_id)
         exercises.append(
             {
                 "id": we.id,
@@ -131,7 +132,9 @@ def serialize_workout(db: Session, workout: Workout, with_previous: bool = True)
                 "name": exercise.name if exercise else "Unknown",
                 "muscle_group": exercise.muscle_group if exercise else "",
                 "equipment": exercise.equipment if exercise else "",
-                "note": notes.get(we.exercise_id, ""),
+                "load_mode": (mine.load_mode if mine else None)
+                or (exercise.load_mode if exercise else None),
+                "note": mine.text if mine else "",
                 "position": we.position,
                 "rest_seconds": we.rest_seconds,
                 "superset_with_next": we.superset_with_next,

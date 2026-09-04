@@ -69,3 +69,6 @@ def run_migrations() -> None:
     _ensure_column("users", "weigh_in_sent_at", "weigh_in_sent_at DATETIME")
     _ensure_column("routine_exercises", "set_types", "set_types VARCHAR(128)")
     _ensure_column("workout_songs", "genre", "genre VARCHAR(64)")
+    # 'single' | 'pair' | NULL — how many implements load the movement
+    _ensure_column("exercises", "load_mode", "load_mode VARCHAR(8)")
+    _ensure_column("exercise_notes", "load_mode", "load_mode VARCHAR(8)")

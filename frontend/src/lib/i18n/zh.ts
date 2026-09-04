@@ -488,6 +488,13 @@ export const ZH: Record<string, string> = {
   'No sets logged yet': '还没有记录过组',
   'Records and progress will appear once you train this exercise.':
     '练过这个动作之后，纪录和进展会出现在这里。',
+  // How many implements load the movement — display only
+  'load|single': '单只',
+  'load|pair': '双只',
+  'Loaded with': '持握方式',
+  'The weight you log is always one implement’s': '记录的重量始终是单只的重量',
+  '{unit} each': '{unit}/单只',
+  'Could not save how this exercise is loaded': '保存持握方式失败',
   'Best weight': '最大重量',
   'Best set volume': '单组最大容量',
   'Most reps (BW)': '最多次数（自重）',

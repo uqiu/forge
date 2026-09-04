@@ -288,7 +288,13 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
         const we = localExercise(
           base,
           [base - 1],
-          { exercise_id: ex.id, name: ex.name, muscle_group: ex.muscle_group, equipment: ex.equipment },
+          {
+            exercise_id: ex.id,
+            name: ex.name,
+            muscle_group: ex.muscle_group,
+            equipment: ex.equipment,
+            load_mode: ex.load_mode ?? null,
+          },
           { position: w.exercises.length },
         )
         return { ...w, exercises: [...w.exercises, we] }
@@ -350,6 +356,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
                   name: ex.name,
                   muscle_group: ex.muscle_group,
                   equipment: ex.equipment,
+                  load_mode: ex.load_mode ?? null,
                   note: '',
                   // Swapping clears template targets — mirrors the server
                   rep_min: null,
