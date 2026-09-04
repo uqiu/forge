@@ -46,11 +46,15 @@ function PlansSheet({
   const [plans, setPlans] = useCachedState<Plan[]>('plans', [])
   const [adopting, setAdopting] = useState<string | null>(null)
 
+  // The cache paints instantly, but it can't be the only source: the plan
+  // library is server-owned and grows when the server updates, and the cache
+  // outlives a reload in IndexedDB. Revalidate on every open.
   useEffect(() => {
-    if (open && plans.length === 0) {
-      api<Plan[]>('/plans').then(setPlans).catch(() => {})
-    }
-  }, [open, plans.length])
+    if (!open) return
+    api<Plan[]>('/plans')
+      .then(setPlans)
+      .catch(() => {})
+  }, [open, setPlans])
 
   const adopt = async (plan: Plan) => {
     setAdopting(plan.key)
