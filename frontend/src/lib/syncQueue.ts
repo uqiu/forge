@@ -4,6 +4,7 @@
  *  replays in the right order. Same localStorage pattern as the outbox. */
 import { useSyncExternalStore } from 'react'
 import { api, ApiError } from './api'
+import { t, tc } from './i18n'
 import type { SyncPayload } from './localWorkout'
 import { toast } from './toast'
 
@@ -64,9 +65,11 @@ export const syncQueue = {
             })
             const prCount = res.finish?.prs.length ?? 0
             toast(
-              prCount > 0
-                ? `"${task.name}" synced — ${prCount} PR${prCount > 1 ? 's' : ''} detected`
-                : `"${task.name}" synced`,
+              prCount > 1
+                ? t('“{name}” synced — {n} PRs detected', { name: tc(task.name), n: prCount })
+                : prCount === 1
+                  ? t('“{name}” synced — {n} PR detected', { name: tc(task.name), n: prCount })
+                  : t('“{name}” synced', { name: tc(task.name) }),
               { kind: 'info' },
             )
           } else {
@@ -76,7 +79,8 @@ export const syncQueue = {
           if (e instanceof ApiError && e.status < 500) {
             // 404 discard target already gone, 422 unsyncable document, ... —
             // drop rather than jam the queue forever
-            if (task.kind === 'finish') toast(`"${task.name}" could not sync and was skipped`)
+            if (task.kind === 'finish')
+              toast(t('“{name}” could not sync and was skipped', { name: tc(task.name) }))
           } else {
             return false // offline or server trouble — retry later
           }
