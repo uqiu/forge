@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useWorkout } from '../contexts/WorkoutContext'
 import { api } from '../lib/api'
 import { useCachedState } from '../lib/dataCache'
+import { t, tc, tm } from '../lib/i18n'
 import { isNetworkError } from '../lib/outbox'
 import { localProgramPreview } from '../lib/programLocal'
 import { toast } from '../lib/toast'
@@ -164,6 +165,8 @@ export default function ProgramsSection() {
       await api('/programs', {
         method: 'POST',
         body: {
+          // Falls back to the scheme's canonical English name — stored data,
+          // translated on display like every other catalog string.
           name: draftName.trim() || schemes[draftScheme]?.name || 'Program',
           scheme: draftScheme,
           rounding: draftRounding,
@@ -178,7 +181,7 @@ export default function ProgramsSection() {
       setCreating(false)
       load()
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Could not create the program')
+      toast(e instanceof Error ? tm(e.message) : t('Could not create the program'))
     } finally {
       setBusy(false)
     }
@@ -205,7 +208,7 @@ export default function ProgramsSection() {
       setEditTarget(null)
       load()
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Could not save')
+      toast(e instanceof Error ? tm(e.message) : t('Could not save'))
     } finally {
       setBusy(false)
     }
@@ -223,7 +226,7 @@ export default function ProgramsSection() {
         // Offline: the same walk computed from cached state
         const local = isNetworkError(e) ? localProgramPreview(p.id, count) : null
         if (local) setPreview(local)
-        else toast('Could not load the session preview')
+        else toast(t('Could not load the session preview'))
       })
   }
 
@@ -234,7 +237,7 @@ export default function ProgramsSection() {
       await start({ programId: p.id })
       navigate('/workout', { viewTransition: true })
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Could not start the session')
+      toast(e instanceof Error ? tm(e.message) : t('Could not start the session'))
       setBusy(false)
     }
   }
@@ -251,7 +254,7 @@ export default function ProgramsSection() {
   // Smallest weight step the gym's plates allow — prescriptions round to it
   const stepPicker = (value: number, onChange: (v: number) => void) => (
     <div className="flex items-center justify-between">
-      <span className="text-sm text-muted-foreground">Plate step</span>
+      <span className="text-sm text-muted-foreground">{t('Plate step')}</span>
       <div className="flex gap-1">
         {[1.25, 2.5, 5].map((s) => (
           <button
@@ -273,20 +276,20 @@ export default function ProgramsSection() {
   const accessoryPicker = (value: number | null | undefined, onChange: (v: number | null) => void) =>
     routines.length === 0 ? (
       <p className="text-xs text-muted-foreground">
-        Accessories: none — create a template under Templates to attach one.
+        {t('Accessories: none — create a template under Templates to attach one.')}
       </p>
     ) : (
       <label className="flex items-center gap-2 text-xs text-muted-foreground">
-        Accessories
+        {t('Accessories')}
         <select
           value={value ?? ''}
           onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
           className="min-w-0 flex-1 rounded-lg border bg-background px-2 py-1.5 text-sm text-foreground"
         >
-          <option value="">None</option>
+          <option value="">{t('None')}</option>
           {routines.map((r) => (
             <option key={r.id} value={r.id}>
-              {r.name}
+              {tc(r.name)}
             </option>
           ))}
         </select>
@@ -296,19 +299,20 @@ export default function ProgramsSection() {
   return (
     <>
       <div className="mt-8 mb-3 flex items-center justify-between">
-        <h2 className="text-xl">Programs</h2>
+        <h2 className="text-xl">{t('Programs')}</h2>
         <button
           onClick={openCreate}
           className="touch-feedback flex items-center gap-1 rounded-lg px-2 py-1 text-sm font-semibold text-primary"
         >
-          <Plus size={16} /> New
+          <Plus size={16} /> {t('New')}
         </button>
       </div>
 
       {programs.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Percentage-based training cycles — 5/3/1 or a linear block — with training maxes
-          that advance themselves. Weights come prefilled every session.
+          {t(
+            'Percentage-based training cycles — 5/3/1 or a linear block — with training maxes that advance themselves. Weights come prefilled every session.',
+          )}
         </p>
       ) : (
         <div className="flex flex-col gap-3 md:grid md:grid-cols-2">
@@ -316,16 +320,21 @@ export default function ProgramsSection() {
             <div key={p.id} className="rounded-xl border bg-card p-4">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="truncate font-semibold">{p.name}</div>
+                  <div className="truncate font-semibold">{tc(p.name)}</div>
                   <div className="text-xs text-muted-foreground">
-                    {p.scheme_name} · Cycle {p.cycle_number} · Week {p.current_week}/{p.cycle_length}
+                    {tc(p.scheme_name)} ·{' '}
+                    {t('Cycle {cycle} · Week {week}/{total}', {
+                      cycle: p.cycle_number,
+                      week: p.current_week,
+                      total: p.cycle_length,
+                    })}
                   </div>
                 </div>
                 <button
                   onClick={() => openEdit(p)}
                   className="touch-feedback shrink-0 rounded-lg px-2 py-1 text-xs font-medium text-muted-foreground"
                 >
-                  Edit
+                  {t('Edit')}
                 </button>
               </div>
               {p.next && (
@@ -335,14 +344,14 @@ export default function ProgramsSection() {
                 >
                   <div className="min-w-0 flex-1">
                     <div className="text-xs text-muted-foreground">
-                      Next · {p.next.exercise_name}
+                      {t('Next')} · {tc(p.next.exercise_name)}
                     </div>
                     <div className="tnum mt-0.5 text-sm font-medium">
                       {setsSummary(p.next.sets)} {unit}
                     </div>
                     {p.next.routine_name && (
                       <div className="mt-0.5 text-xs text-muted-foreground">
-                        + {p.next.routine_name}
+                        + {tc(p.next.routine_name)}
                       </div>
                     )}
                   </div>
@@ -354,7 +363,7 @@ export default function ProgramsSection() {
                 disabled={busy}
                 className="touch-feedback mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-accent-soft py-2.5 text-sm font-semibold text-primary"
               >
-                Start session <ChevronRight size={15} />
+                {t('Start session')} <ChevronRight size={15} />
               </button>
             </div>
           ))}
@@ -367,7 +376,7 @@ export default function ProgramsSection() {
       <Sheet
         open={previewFor != null}
         onClose={() => setPreviewFor(null)}
-        title={previewFor?.name ?? 'Program'}
+        title={previewFor ? tc(previewFor.name) : t('Program')}
       >
         {(() => {
           const s = preview[previewIdx]
@@ -377,7 +386,9 @@ export default function ProgramsSection() {
           const BODY = 'h-[min(420px,62svh)]'
           if (!s)
             return (
-              <div className={`${BODY} pb-2 text-sm text-muted-foreground`}>Loading sessions…</div>
+              <div className={`${BODY} pb-2 text-sm text-muted-foreground`}>
+                {t('Loading sessions…')}
+              </div>
             )
           const isDeload = previewFor?.scheme === '531' && s.week === 4
           return (
@@ -385,11 +396,17 @@ export default function ProgramsSection() {
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-sm font-semibold">
-                    {s.offset === 0 ? 'Next session' : `In ${s.offset + 1} sessions`}
+                    {s.offset === 0
+                      ? t('Next session')
+                      : t('In {n} sessions', { n: s.offset + 1 })}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    Cycle {s.cycle_number} · Week {s.week}/{previewFor?.cycle_length}
-                    {isDeload && ' · Deload'}
+                    {t('Cycle {cycle} · Week {week}/{total}', {
+                      cycle: s.cycle_number,
+                      week: s.week,
+                      total: previewFor?.cycle_length ?? '',
+                    })}
+                    {isDeload && ` · ${t('Deload')}`}
                   </div>
                 </div>
                 <div className="flex gap-1">
@@ -397,7 +414,7 @@ export default function ProgramsSection() {
                     onClick={() => setPreviewIdx((i) => Math.max(0, i - 1))}
                     disabled={previewIdx === 0}
                     className="touch-feedback rounded-lg border bg-card p-2 disabled:opacity-30"
-                    aria-label="Previous session"
+                    aria-label={t('Previous session')}
                   >
                     <ChevronLeft size={16} />
                   </button>
@@ -405,7 +422,7 @@ export default function ProgramsSection() {
                     onClick={() => setPreviewIdx((i) => Math.min(preview.length - 1, i + 1))}
                     disabled={previewIdx >= preview.length - 1}
                     className="touch-feedback rounded-lg border bg-card p-2 disabled:opacity-30"
-                    aria-label="Next session"
+                    aria-label={t('Next session')}
                   >
                     <ChevronRight size={16} />
                   </button>
@@ -415,7 +432,9 @@ export default function ProgramsSection() {
               <div className={`${BODY} flex flex-col gap-3 overflow-y-auto`}>
               <div className="shrink-0 rounded-xl border bg-card px-3.5 py-3">
                 <div className="flex items-baseline justify-between gap-2">
-                  <span className="min-w-0 truncate text-sm font-semibold">{s.exercise_name}</span>
+                  <span className="min-w-0 truncate text-sm font-semibold">
+                    {tc(s.exercise_name)}
+                  </span>
                   <span className="tnum shrink-0 text-xs text-muted-foreground">
                     TM {s.training_max} {unit}
                   </span>
@@ -437,7 +456,7 @@ export default function ProgramsSection() {
                 </div>
                 {s.beat_reps != null && (
                   <p className="mt-2 border-t pt-2 text-xs text-muted-foreground">
-                    ×{s.beat_reps}+ on the top set beats your current best
+                    {t('×{reps}+ on the top set beats your current best', { reps: s.beat_reps })}
                   </p>
                 )}
               </div>
@@ -445,12 +464,12 @@ export default function ProgramsSection() {
               {s.accessories.length > 0 && (
                 <div className="shrink-0 rounded-xl border bg-card px-3.5 py-3">
                   <div className="text-xs font-medium text-muted-foreground">
-                    + {s.routine_name}
+                    + {tc(s.routine_name)}
                   </div>
                   <div className="mt-2 flex flex-col gap-1.5">
                     {s.accessories.map((a, i) => (
                       <div key={i} className="flex items-center justify-between gap-2 text-sm">
-                        <span className="min-w-0 truncate">{a.name}</span>
+                        <span className="min-w-0 truncate">{tc(a.name)}</span>
                         <span className="tnum shrink-0 text-muted-foreground">
                           {a.set_count} × {a.rep_min && a.rep_max ? `${a.rep_min}–${a.rep_max}` : '—'}
                         </span>
@@ -469,7 +488,7 @@ export default function ProgramsSection() {
                   disabled={busy}
                   className="touch-feedback flex w-full shrink-0 items-center justify-center gap-1.5 rounded-xl bg-accent-soft py-3 text-sm font-semibold text-primary"
                 >
-                  Start this session <ChevronRight size={15} />
+                  {t('Start this session')} <ChevronRight size={15} />
                 </button>
               )}
               </div>
@@ -479,12 +498,14 @@ export default function ProgramsSection() {
       </Sheet>
 
       {/* Create sheet */}
-      <Sheet open={creating} onClose={() => setCreating(false)} title="New program">
+      <Sheet open={creating} onClose={() => setCreating(false)} title={t('New program')}>
         <div className="flex flex-col gap-4 pb-2">
           <input
             value={draftName}
             onChange={(e) => setDraftName(e.target.value)}
-            placeholder={schemes[draftScheme]?.name ?? 'Program name'}
+            placeholder={
+              schemes[draftScheme] ? tc(schemes[draftScheme].name) : t('Program name')
+            }
             className="w-full rounded-xl border bg-card px-3.5 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-ring"
           />
           <div className="flex flex-col gap-2">
@@ -498,9 +519,11 @@ export default function ProgramsSection() {
               >
                 <div className="flex items-center gap-2 text-sm font-semibold">
                   <CalendarRange size={15} className="text-primary" />
-                  {s.name}
+                  {tc(s.name)}
                 </div>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{s.description}</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  {tc(s.description)}
+                </p>
               </button>
             ))}
           </div>
@@ -509,26 +532,30 @@ export default function ProgramsSection() {
 
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-semibold">Lifts</span>
+              <span className="text-sm font-semibold">{t('Lifts')}</span>
               <button
                 onClick={() => setPickerOpen(true)}
                 className="touch-feedback flex items-center gap-1 rounded-lg px-2 py-1 text-sm font-semibold text-primary"
               >
-                <Plus size={15} /> Add lift
+                <Plus size={15} /> {t('Add lift')}
               </button>
             </div>
             {draftLifts.length === 0 && (
               <p className="text-xs text-muted-foreground">
-                Training maxes prefill at 90% of your best estimated 1RM where history exists.
+                {t(
+                  'Training maxes prefill at 90% of your best estimated 1RM where history exists.',
+                )}
               </p>
             )}
             <div className="flex flex-col gap-2">
               {draftLifts.map((l, i) => (
                 <div key={l.exercise.id} className="rounded-xl border bg-card px-3 py-2">
                 <div className="flex items-center gap-2">
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{l.exercise.name}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                    {tc(l.exercise.name)}
+                  </span>
                   <label className="flex items-center gap-1 text-xs text-muted-foreground">
-                    TM
+                    {t('TM')}
                     <input
                       type="number"
                       inputMode="decimal"
@@ -558,7 +585,7 @@ export default function ProgramsSection() {
                   <button
                     onClick={() => setDraftLifts((ls) => ls.filter((_, j) => j !== i))}
                     className="touch-feedback shrink-0 p-1 text-muted-foreground"
-                    aria-label={`Remove ${l.exercise.name}`}
+                    aria-label={t('Remove {name}', { name: tc(l.exercise.name) })}
                   >
                     <X size={15} />
                   </button>
@@ -578,13 +605,13 @@ export default function ProgramsSection() {
             disabled={busy || draftLifts.length === 0}
             className="touch-feedback w-full rounded-xl bg-primary py-3 font-semibold text-primary-foreground disabled:opacity-40"
           >
-            Create program
+            {t('Create program')}
           </button>
         </div>
       </Sheet>
 
       {/* Edit sheet */}
-      <Sheet open={editTarget != null} onClose={() => setEditTarget(null)} title="Edit program">
+      <Sheet open={editTarget != null} onClose={() => setEditTarget(null)} title={t('Edit program')}>
         {editTarget && (
           <div className="flex flex-col gap-4 pb-2">
             <input
@@ -594,21 +621,21 @@ export default function ProgramsSection() {
             />
             {stepPicker(editTarget.rounding, (v) => setEditTarget({ ...editTarget, rounding: v }))}
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold">Lifts</span>
+              <span className="text-sm font-semibold">{t('Lifts')}</span>
               <button
                 onClick={() => setPickerOpen(true)}
                 className="touch-feedback flex items-center gap-1 rounded-lg px-2 py-1 text-sm font-semibold text-primary"
               >
-                <Plus size={15} /> Add lift
+                <Plus size={15} /> {t('Add lift')}
               </button>
             </div>
             <div className="flex flex-col gap-2">
               {editTarget.lifts.map((l, i) => (
                 <div key={l.id ?? `new-${l.exercise_id}`} className="rounded-xl border bg-card px-3 py-2">
                 <div className="flex items-center gap-2">
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{l.name}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{tc(l.name)}</span>
                   <label className="flex items-center gap-1 text-xs text-muted-foreground">
-                    TM
+                    {t('TM')}
                     <input
                       type="number"
                       inputMode="decimal"
@@ -650,7 +677,7 @@ export default function ProgramsSection() {
                         })
                       }
                       className="touch-feedback shrink-0 p-1 text-muted-foreground"
-                      aria-label={`Remove ${l.name}`}
+                      aria-label={t('Remove {name}', { name: tc(l.name) })}
                     >
                       <X size={15} />
                     </button>
@@ -675,14 +702,14 @@ export default function ProgramsSection() {
                 }}
                 className="touch-feedback flex items-center justify-center gap-1.5 rounded-xl border px-4 py-3 text-sm font-semibold text-destructive"
               >
-                <Trash2 size={15} /> Delete
+                <Trash2 size={15} /> {t('Delete')}
               </button>
               <button
                 onClick={saveEdit}
                 disabled={busy}
                 className="touch-feedback flex-1 rounded-xl bg-primary py-3 font-semibold text-primary-foreground"
               >
-                Save
+                {t('Save')}
               </button>
             </div>
           </div>
@@ -693,9 +720,9 @@ export default function ProgramsSection() {
 
       <ConfirmSheet
         open={deleteTarget != null}
-        title={`Delete ${deleteTarget?.name ?? 'program'}?`}
-        message="Logged workouts stay; only the program and its state are removed."
-        actionLabel="Delete"
+        title={t('Delete {name}?', { name: deleteTarget ? tc(deleteTarget.name) : t('program') })}
+        message={t('Logged workouts stay; only the program and its state are removed.')}
+        actionLabel={t('Delete')}
         destructive
         onConfirm={() => deleteTarget && removeProgram(deleteTarget)}
         onClose={() => setDeleteTarget(null)}

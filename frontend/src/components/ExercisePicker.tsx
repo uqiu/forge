@@ -3,6 +3,7 @@ import EquipmentGlyph from './EquipmentGlyph'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../lib/api'
 import { fetchExercises, getCachedExercises } from '../lib/exerciseCache'
+import { getLocale, intlLocale, t, tc, tm } from '../lib/i18n'
 import { makeMatcher } from '../lib/search'
 import type { Exercise } from '../lib/types'
 import { cn } from '../lib/utils'
@@ -28,7 +29,11 @@ interface Family {
 
 /** "Close-Grip Bench Press" under base "Bench Press" reads as "Close-Grip";
  *  "Lat Pulldown (Wide Grip)" reads as "Wide Grip". Falls back to the full
- *  name when stripping the base leaves nothing sensible. */
+ *  name when stripping the base leaves nothing sensible.
+ *
+ *  Runs on the canonical English names — the modifier only survives being
+ *  peeled off the base if both are the stored spelling. Translate the result,
+ *  not the input. */
 export function variantLabel(name: string, baseName: string): string {
   // "Base (Wide Grip)" -> "Wide Grip"
   if (name.startsWith(`${baseName} (`) && name.endsWith(')')) {
@@ -82,7 +87,7 @@ function ToggleChips<T extends string>({
                 : 'text-muted-foreground',
             )}
           >
-            {opt}
+            {tc(opt)}
           </button>
         ))}
       </div>
@@ -122,30 +127,32 @@ function VariantSheet({
       })
       onCreated(created)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not create the variant')
+      setError(e instanceof Error ? tm(e.message) : t('Could not create the variant'))
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <Sheet open onClose={onClose} title={`Variant of ${base.name}`}>
+    <Sheet open onClose={onClose} title={t('Variant of {name}', { name: tc(base.name) })}>
       <div className="flex flex-col gap-4 pt-1 pb-2">
         <p className="text-sm text-muted-foreground">
-          Pick what's different — the variant tracks its own weights, history and
-          PRs, grouped under {base.name}.
+          {t(
+            "Pick what's different — the variant tracks its own weights, history and PRs, grouped under {name}.",
+            { name: tc(base.name) },
+          )}
         </p>
-        <ToggleChips label="Grip" options={GRIP_OPTIONS} value={grip as never} onChange={setGrip} />
-        <ToggleChips label="Width" options={WIDTH_OPTIONS} value={width as never} onChange={setWidth} />
+        <ToggleChips label={t('Grip')} options={GRIP_OPTIONS} value={grip as never} onChange={setGrip} />
+        <ToggleChips label={t('Width')} options={WIDTH_OPTIONS} value={width as never} onChange={setWidth} />
         <ToggleChips
-          label="Loaded by"
+          label={t('Loaded by')}
           options={EQUIPMENT_OPTIONS}
           value={equipment as never}
           onChange={setEquipment}
         />
         {cableContext && (
           <ToggleChips
-            label="Attachment"
+            label={t('Attachment')}
             options={ATTACHMENT_OPTIONS}
             value={attachment as never}
             onChange={setAttachment}
@@ -157,7 +164,7 @@ function VariantSheet({
           disabled={busy || !(grip || width || equipment || attachment)}
           className="touch-feedback h-12 rounded-xl bg-primary font-semibold text-primary-foreground disabled:opacity-50"
         >
-          {busy ? 'Creating…' : 'Create variant'}
+          {busy ? t('Creating…') : t('Create variant')}
         </button>
       </div>
     </Sheet>
@@ -182,11 +189,11 @@ export default function ExercisePicker({
     if (supersetStage === 'second') {
       setQuery('')
       // After the cleared-query re-render, or the list height shift eats the scroll
-      const t = setTimeout(
+      const id = setTimeout(
         () => supersetBannerRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }),
         80,
       )
-      return () => clearTimeout(t)
+      return () => clearTimeout(id)
     }
   }, [supersetStage])
   const [group, setGroup] = useState<string | null>(null)
@@ -231,15 +238,23 @@ export default function ExercisePicker({
         const baseEq = byId.get(baseId)?.equipment
         const ae = a.equipment !== baseEq ? a.equipment : ''
         const be = b.equipment !== baseEq ? b.equipment : ''
-        return ae.localeCompare(be) || a.name.localeCompare(b.name)
+        return (
+          tc(ae).localeCompare(tc(be), intlLocale()) ||
+          tc(a.name).localeCompare(tc(b.name), intlLocale())
+        )
       })
       return { baseId, base, members }
     })
+    // Alphabetical by the name on screen — English order in a Chinese list
+    // reads as no order at all.
     result.sort((a, b) =>
-      (a.base?.name ?? a.members[0].name).localeCompare(b.base?.name ?? b.members[0].name),
+      tc(a.base?.name ?? a.members[0].name).localeCompare(
+        tc(b.base?.name ?? b.members[0].name),
+        intlLocale(),
+      ),
     )
     return result
-  }, [exercises, byId, query, group])
+  }, [exercises, byId, query, group, getLocale()])
 
   // Most recently trained, shown only on the unfiltered view
   const recent = useMemo(
@@ -259,7 +274,7 @@ export default function ExercisePicker({
       const created = await api<Exercise>('/exercises', { method: 'POST', body: fields })
       onPick(created)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to create exercise')
+      setError(e instanceof Error ? tm(e.message) : t('Failed to create exercise'))
     }
   }
 
@@ -273,11 +288,15 @@ export default function ExercisePicker({
   }
 
   const renderVariantRow = (e: Exercise, base: Exercise | null) => {
-    const label = base ? variantLabel(e.name, base.name) : e.name
+    const englishLabel = base ? variantLabel(e.name, base.name) : e.name
+    const label = tc(englishLabel)
+    // Redundancy is decided on the English label — that's where the modifier
+    // words the chips would repeat actually live.
     const rawChip = equipmentChip(e, base)
-    const chip = rawChip && !label.toLowerCase().includes(rawChip.toLowerCase()) ? rawChip : null
+    const chip =
+      rawChip && !englishLabel.toLowerCase().includes(rawChip.toLowerCase()) ? rawChip : null
     const attachment =
-      e.attachment && !label.toLowerCase().includes(e.attachment.toLowerCase())
+      e.attachment && !englishLabel.toLowerCase().includes(e.attachment.toLowerCase())
         ? e.attachment
         : null
     return (
@@ -289,17 +308,17 @@ export default function ExercisePicker({
           <span className="min-w-0 truncate font-medium">{label}</span>
           {chip && (
             <span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
-              {chip}
+              {tc(chip)}
             </span>
           )}
           {attachment && (
             <span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
-              {attachment}
+              {tc(attachment)}
             </span>
           )}
           {e.is_custom && (
             <span className="shrink-0 rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-semibold text-primary">
-              Custom
+              {t('Custom')}
             </span>
           )}
         </button>
@@ -308,10 +327,10 @@ export default function ExercisePicker({
   }
 
   return (
-    <Sheet open={open} onClose={onClose} title={creating ? 'New exercise' : 'Add exercise'} full>
+    <Sheet open={open} onClose={onClose} title={creating ? t('New exercise') : t('Add exercise')} full>
       {creating ? (
         <ExerciseForm
-          submitLabel="Create"
+          submitLabel={t('Create')}
           onSubmit={createExercise}
           error={error}
           secondaryAction={
@@ -319,7 +338,7 @@ export default function ExercisePicker({
               onClick={() => setCreating(false)}
               className="touch-feedback h-11 flex-1 rounded-lg bg-secondary font-semibold text-secondary-foreground"
             >
-              Back
+              {t('Back')}
             </button>
           }
         />
@@ -331,7 +350,7 @@ export default function ExercisePicker({
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search exercises"
+                placeholder={t('Search exercises')}
                 enterKeyHint="search"
                 className="h-11 w-full rounded-lg border border-input bg-card pr-3 pl-10 text-base outline-none focus:ring-2 focus:ring-ring"
               />
@@ -348,7 +367,7 @@ export default function ExercisePicker({
                       : 'bg-secondary text-secondary-foreground',
                   )}
                 >
-                  {g}
+                  {tc(g)}
                 </button>
               ))}
             </div>
@@ -357,14 +376,14 @@ export default function ExercisePicker({
             onClick={() => setCreating(true)}
             className="touch-feedback mt-1 flex w-full items-center gap-2 rounded-lg px-2 py-2.5 text-left font-medium text-primary"
           >
-            <Plus size={18} /> Create custom exercise
+            <Plus size={18} /> {t('Create custom exercise')}
           </button>
           {onStartSuperset && !supersetStage && (
             <button
               onClick={onStartSuperset}
               className="touch-feedback flex w-full items-center gap-2 rounded-lg px-2 py-2.5 text-left font-medium text-primary"
             >
-              <Link2 size={18} /> Add superset
+              <Link2 size={18} /> {t('Add superset')}
             </button>
           )}
           {supersetStage && (
@@ -374,11 +393,13 @@ export default function ExercisePicker({
             >
               <Link2 size={16} className="shrink-0" />
               <span className="flex-1">
-                Superset — pick the {supersetStage === 'first' ? 'first' : 'second'} exercise
+                {supersetStage === 'first'
+                  ? t('Superset — pick the first exercise')
+                  : t('Superset — pick the second exercise')}
               </span>
               <button
                 onClick={onCancelSuperset}
-                aria-label="Cancel superset"
+                aria-label={t('Cancel superset')}
                 className="touch-feedback -mr-1 rounded-full p-1"
               >
                 <X size={16} />
@@ -388,7 +409,7 @@ export default function ExercisePicker({
           {recent.length > 0 && (
             <>
               <h3 className="mt-1 mb-1 px-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                Recent
+                {t('Recent')}
               </h3>
               <ul className="mb-2 divide-y divide-border/60">
                 {recent.map((e) => (
@@ -398,16 +419,16 @@ export default function ExercisePicker({
                       className="touch-feedback flex w-full items-center gap-2.5 px-2 py-2.5 text-left"
                     >
                       <EquipmentGlyph equipment={e.equipment} size={16} className="shrink-0 text-muted-foreground" />
-                      <span className="min-w-0 truncate font-medium">{e.name}</span>
+                      <span className="min-w-0 truncate font-medium">{tc(e.name)}</span>
                       <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-                        {e.muscle_group}
+                        {tc(e.muscle_group)}
                       </span>
                     </button>
                   </li>
                 ))}
               </ul>
               <h3 className="mb-1 px-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                All exercises
+                {t('All exercises')}
               </h3>
             </>
           )}
@@ -429,19 +450,19 @@ export default function ExercisePicker({
                         className="shrink-0 text-muted-foreground"
                       />
                       <span className="min-w-0">
-                        <span className="block truncate font-medium">{head.name}</span>
+                        <span className="block truncate font-medium">{tc(head.name)}</span>
                         <span className="block text-sm text-muted-foreground">
-                          {head.muscle_group} · {head.equipment}
-                          {head.attachment && ` · ${head.attachment}`}
-                          {head.grip && ` · ${head.grip}`}
-                          {head.is_custom && ' · Custom'}
+                          {tc(head.muscle_group)} · {tc(head.equipment)}
+                          {head.attachment && ` · ${tc(head.attachment)}`}
+                          {head.grip && ` · ${tc(head.grip)}`}
+                          {head.is_custom && ` · ${t('Custom')}`}
                         </span>
                       </span>
                     </button>
                     <button
                       onClick={() => toggleFamily(family.baseId)}
                       className="touch-feedback flex shrink-0 items-center gap-1 rounded-lg px-2 py-2 text-xs font-medium text-muted-foreground"
-                      aria-label={`Variants of ${head.name}`}
+                      aria-label={t('Variants of {name}', { name: tc(head.name) })}
                     >
                       {variants.length > 0 && <span className="tnum">{variants.length}</span>}
                       <ChevronDown
@@ -457,15 +478,15 @@ export default function ExercisePicker({
                           onClick={() => onPick(head)}
                           className="touch-feedback flex w-full items-center gap-2 py-2.5 pr-2 pl-7 text-left"
                         >
-                          <span className="min-w-0 truncate font-medium">Standard</span>
+                          <span className="min-w-0 truncate font-medium">{t('Standard')}</span>
                           {head.attachment && (
                             <span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                              {head.attachment}
+                              {tc(head.attachment)}
                             </span>
                           )}
                           {head.grip && (
                             <span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                              {head.grip}
+                              {tc(head.grip)}
                             </span>
                           )}
                         </button>
@@ -476,7 +497,7 @@ export default function ExercisePicker({
                           onClick={() => setVariantBase(head)}
                           className="touch-feedback flex w-full items-center gap-1.5 py-2.5 pr-2 pl-7 text-left text-sm font-medium text-primary"
                         >
-                          <SlidersHorizontal size={14} /> New variant
+                          <SlidersHorizontal size={14} /> {t('New variant')}
                         </button>
                       </li>
                     </ul>
@@ -485,7 +506,9 @@ export default function ExercisePicker({
               )
             })}
             {families.length === 0 && (
-              <li className="py-8 text-center text-sm text-muted-foreground">No exercises found</li>
+              <li className="py-8 text-center text-sm text-muted-foreground">
+                {t('No exercises found')}
+              </li>
             )}
           </ul>
           {variantBase && (
