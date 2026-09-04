@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import Sheet from './Sheet'
+import { t } from '../lib/i18n'
 import { cn } from '../lib/utils'
 
 interface ConfirmSheetProps {
@@ -39,7 +40,7 @@ export default function ConfirmSheet({
           onClick={onClose}
           className="touch-feedback h-12 rounded-xl bg-secondary font-semibold text-secondary-foreground"
         >
-          Keep it
+          {t('Keep it')}
         </button>
       </div>
     </Sheet>

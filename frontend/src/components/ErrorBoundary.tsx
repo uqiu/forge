@@ -1,5 +1,6 @@
 import { Component, type ReactNode } from 'react'
 import { RotateCcw } from 'lucide-react'
+import { t } from '../lib/i18n'
 
 interface Props {
   children: ReactNode
@@ -22,9 +23,9 @@ export default class ErrorBoundary extends Component<Props, State> {
     if (!this.state.error) return this.props.children
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 px-8 text-center">
-        <h1 className="text-2xl">Something broke</h1>
+        <h1 className="text-2xl">{t('Something broke')}</h1>
         <p className="text-sm text-muted-foreground">
-          Your data is safe on the server — this is just the screen falling over.
+          {t('Your data is safe on the server — this is just the screen falling over.')}
         </p>
         <p className="tnum max-w-full overflow-hidden rounded-lg bg-secondary px-3 py-2 text-xs text-ellipsis whitespace-nowrap text-muted-foreground">
           {this.state.error.message}
@@ -33,7 +34,7 @@ export default class ErrorBoundary extends Component<Props, State> {
           onClick={() => location.reload()}
           className="touch-feedback flex items-center gap-2 rounded-xl bg-primary px-5 py-3 font-semibold text-primary-foreground"
         >
-          <RotateCcw size={17} /> Reload
+          <RotateCcw size={17} /> {t('Reload')}
         </button>
       </div>
     )

@@ -2,16 +2,17 @@ import { Dumbbell, Flame, History, Settings, BicepsFlexed, Play, Timer, Trending
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useWorkout } from '../contexts/WorkoutContext'
 import { formatClock, parseUTC } from '../lib/format'
+import { t } from '../lib/i18n'
 import { useRestTimer } from '../lib/timer'
 import { cn } from '../lib/utils'
 import { useEffect, useRef, useState } from 'react'
 
 const TABS = [
-  { to: '/', label: 'Workout', icon: Dumbbell },
-  { to: '/history', label: 'History', icon: History },
-  { to: '/exercises', label: 'Exercises', icon: BicepsFlexed },
-  { to: '/stats', label: 'Stats', icon: TrendingUp },
-  { to: '/settings', label: 'Settings', icon: Settings },
+  { to: '/', label: 'nav|Workout', icon: Dumbbell },
+  { to: '/history', label: 'nav|History', icon: History },
+  { to: '/exercises', label: 'nav|Exercises', icon: BicepsFlexed },
+  { to: '/stats', label: 'nav|Stats', icon: TrendingUp },
+  { to: '/settings', label: 'nav|Settings', icon: Settings },
 ]
 
 function ResumeBar({ className }: { className?: string }) {
@@ -107,7 +108,7 @@ export default function AppShell() {
               }
             >
               <Icon size={19} strokeWidth={2} />
-              {label}
+              {t(label)}
             </NavLink>
           ))}
         </nav>
@@ -147,7 +148,7 @@ export default function AppShell() {
                   }
                 >
                   <Icon size={22} strokeWidth={2} />
-                  {label}
+                  {t(label)}
                 </NavLink>
               ))}
             </div>
