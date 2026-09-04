@@ -8,7 +8,7 @@
 # see docs/https.md.
 services:
   forge:
-    image: ghcr.io/bndct-devops/forge:latest
+    image: ghcr.io/uqiu/forge:latest
     container_name: forge
     ports:
       - "8081:8081"
