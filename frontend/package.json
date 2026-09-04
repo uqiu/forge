@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:aliases": "node scripts/check-aliases.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.2",

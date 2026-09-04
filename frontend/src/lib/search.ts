@@ -5,11 +5,13 @@
 // order — "plate loaded", "plateloaded" and "plate chest" all find
 // "Plate-Loaded Incline Chest Press".
 
-// Chinese adds a second name per exercise and no word spacing: a query is
-// matched against the English name *and* its translation, and CJK survives
-// normalisation so "卧推" finds 卧推 while "bench" still finds Bench Press.
+// Chinese adds more names per exercise and no word spacing. A query is matched
+// against everything an exercise can be called — English, the Chinese display
+// name, and the aliases people type instead (Chinese lifting vocabulary isn't
+// standardised) — with CJK surviving normalisation, so "卧推", "平板卧推" and
+// "bench" all find Bench Press whichever language the app is in.
 
-import { tc } from './i18n'
+import { searchTerms } from './i18n'
 
 const COMBINING_MARKS = /[̀-ͯ]/g
 const KEPT = /[^a-z0-9㐀-䶿一-鿿豈-﫿]+/g
@@ -27,8 +29,7 @@ export function makeMatcher(query: string): (name: string) => boolean {
   const tokens = normalize(query).split(' ').filter(Boolean)
   if (tokens.length === 0) return () => true
   return (name) => {
-    const translated = tc(name)
-    const spaced = normalize(translated === name ? name : `${name} ${translated}`)
+    const spaced = normalize(searchTerms(name))
     // Squashed lets a token span a separator the user left out ("plateloaded")
     const squashed = spaced.replace(/ /g, '')
     return tokens.every((t) => spaced.includes(t) || squashed.includes(t))

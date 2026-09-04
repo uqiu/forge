@@ -3,6 +3,7 @@
  *  Mirrors the theme/timer pattern: module state + listeners + a hook. */
 import { useEffect, useState } from 'react'
 import { ZH } from './zh'
+import { ZH_ALIASES } from './zhAliases'
 import { ZH_CATALOG } from './zhCatalog'
 import { ZH_ERROR_PATTERNS, ZH_ERRORS } from './zhErrors'
 
@@ -86,6 +87,23 @@ export function tc(name: string | null | undefined): string {
   if (name == null) return ''
   if (locale === 'en') return name
   return ZH_CATALOG[name] ?? name
+}
+
+/**
+ * Every string a search should match for a catalog name: the canonical
+ * English, its Chinese display name, and the aliases people type instead.
+ *
+ * Deliberately independent of the current language — someone reading the app
+ * in English still types 卧推, and someone reading it in Chinese still types
+ * "bench" — and search-only, so none of it ever reaches the screen. Chinese
+ * aliases can't produce false positives for an English query, or the reverse,
+ * because the two alphabets don't overlap.
+ */
+export function searchTerms(name: string): string {
+  const zh = ZH_CATALOG[name]
+  const aliases = ZH_ALIASES[name]
+  if (!zh && !aliases) return name
+  return [name, zh, ...(aliases ?? [])].filter(Boolean).join(' ')
 }
 
 /** Translate a backend error `detail`, falling back to the server's wording. */
