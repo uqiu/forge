@@ -1,7 +1,8 @@
-import { ArrowLeftRight, Calculator, Check, ChevronDown, CloudOff, Flag, Flame, GripVertical, Link2, MoreHorizontal, Plus, StickyNote, Timer, Trash2, TrendingDown, TrendingUp, Unlink2, X } from 'lucide-react'
+import { ArrowLeftRight, Calculator, Check, ChevronDown, CirclePlay, CloudOff, Flag, Flame, GripVertical, Link2, MoreHorizontal, Plus, StickyNote, Timer, Trash2, TrendingDown, TrendingUp, Unlink2, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ConfirmSheet from '../components/ConfirmSheet'
+import ExerciseDemoSheet from '../components/ExerciseDemoSheet'
 import ExercisePicker from '../components/ExercisePicker'
 import FinishScreen from '../components/FinishScreen'
 import PlateCalculator from '../components/PlateCalculator'
@@ -11,6 +12,8 @@ import Sheet from '../components/Sheet'
 import { useAuth } from '../contexts/AuthContext'
 import { useWorkout } from '../contexts/WorkoutContext'
 import { api } from '../lib/api'
+import { hasDemo } from '../lib/exerciseDemos'
+import { t, tc, tm } from '../lib/i18n'
 import { isRpeEnabled } from '../lib/prefs'
 import { toast } from '../lib/toast'
 import { formatClock, formatRelativeDate, formatSetWeight, formatVolume, parseUTC, restLabel } from '../lib/format'
@@ -59,6 +62,8 @@ function warmupRamp(target: number, unit: string): { weight: number; reps: numbe
   )
 }
 
+/** `name` is the *displayed* name, already translated — so blurring without
+ *  typing compares equal and never writes the translation back as the name. */
 function NameInput({ name, onCommit }: { name: string; onCommit: (name: string) => void }) {
   const [value, setValue] = useState(name)
   useEffect(() => setValue(name), [name])
@@ -80,8 +85,8 @@ function NameInput({ name, onCommit }: { name: string; onCommit: (name: string) 
 function ElapsedClock({ startedAt }: { startedAt: string }) {
   const [, setTick] = useState(0)
   useEffect(() => {
-    const t = setInterval(() => setTick((v) => v + 1), 1000)
-    return () => clearInterval(t)
+    const id = setInterval(() => setTick((v) => v + 1), 1000)
+    return () => clearInterval(id)
   }, [])
   const elapsed = (Date.now() - parseUTC(startedAt).getTime()) / 1000
   return <span className="tnum text-sm font-medium text-muted-foreground">{formatClock(elapsed)}</span>
@@ -121,6 +126,7 @@ export default function ActiveWorkoutPage() {
   const [peekSessions, setPeekSessions] = useState<
     { workout_id: number; name: string; date: string; sets: { weight: number | null; reps: number | null; is_pr: boolean }[] }[] | null
   >(null)
+  const [demoName, setDemoFor] = useState<string | null>(null)
   const [workoutMenu, setWorkoutMenu] = useState(false)
   const [confirmFinish, setConfirmFinish] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
@@ -200,7 +206,7 @@ export default function ActiveWorkoutPage() {
       setSummary(result)
     } catch (e) {
       setConfirmFinish(false)
-      setError(e instanceof Error ? e.message : 'Could not finish workout')
+      setError(e instanceof Error ? tm(e.message) : t('Could not finish workout'))
     } finally {
       finishingRef.current = false
     }
@@ -221,23 +227,29 @@ export default function ActiveWorkoutPage() {
               <button
                 onClick={() => navigate('/')}
                 className="touch-feedback -ml-2 rounded-full p-2 text-muted-foreground"
-                aria-label="Minimize workout"
+                aria-label={t('Minimize workout')}
               >
                 <ChevronDown size={22} />
               </button>
               <div className="min-w-0 flex-1">
-                <NameInput name={workout.name} onCommit={rename} />
+                <NameInput name={tc(workout.name)} onCommit={rename} />
                 <span className="flex items-center gap-2">
                   <ElapsedClock startedAt={workout.started_at} />
                   {completedCount > 0 && (
                     <span className="tnum text-sm text-muted-foreground">
-                      · {completedCount} {completedCount === 1 ? 'set' : 'sets'} ·{' '}
-                      {formatVolume(liveVolume, user?.unit ?? 'kg')}
+                      ·{' '}
+                      {completedCount === 1
+                        ? t('{n} set', { n: completedCount })
+                        : t('{n} sets', { n: completedCount })}{' '}
+                      · {formatVolume(liveVolume, user?.unit ?? 'kg')}
                     </span>
                   )}
                   {offlinePending > 0 && (
                     <span className="flex items-center gap-1 rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning">
-                      <CloudOff size={12} /> {dirty && legacyPending + queuedWorkouts === 0 ? 'offline — will sync' : `${offlinePending} to sync`}
+                      <CloudOff size={12} />{' '}
+                      {dirty && legacyPending + queuedWorkouts === 0
+                        ? t('offline — will sync')
+                        : t('{n} to sync', { n: offlinePending })}
                     </span>
                   )}
                 </span>
@@ -245,7 +257,7 @@ export default function ActiveWorkoutPage() {
               <button
                 onClick={() => setWorkoutMenu(true)}
                 className="touch-feedback rounded-full p-2 text-muted-foreground"
-                aria-label="Workout options"
+                aria-label={t('Workout options')}
               >
                 <MoreHorizontal size={20} />
               </button>
@@ -253,7 +265,7 @@ export default function ActiveWorkoutPage() {
                 onClick={() => setConfirmFinish(true)}
                 className="touch-feedback rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
               >
-                Finish
+                {t('Finish')}
               </button>
             </div>
           </header>
@@ -274,7 +286,7 @@ export default function ActiveWorkoutPage() {
                   <div className="flex items-center justify-between gap-2">
                     <button
                       {...handleProps(i)}
-                      aria-label={`Reorder ${we.name}`}
+                      aria-label={t('Reorder {name}', { name: tc(we.name) })}
                       className="-m-1 shrink-0 rounded p-1 text-muted-foreground/50"
                     >
                       <GripVertical size={16} />
@@ -283,14 +295,28 @@ export default function ActiveWorkoutPage() {
                       onClick={() => openPeek(we)}
                       className="touch-feedback min-w-0 flex-1 truncate text-left text-base font-semibold text-primary"
                     >
-                      {we.name}
+                      {tc(we.name)}
+                      {we.load_mode && (
+                        <span className="ml-2 rounded bg-secondary px-1.5 py-0.5 align-middle text-[10px] font-semibold tracking-wide text-muted-foreground">
+                          {t(`load|${we.load_mode}`)}
+                        </span>
+                      )}
                       {we.superset && (
                         <span className="ml-2 rounded bg-accent-soft px-1.5 py-0.5 align-middle text-[10px] font-semibold tracking-wide text-primary uppercase">
-                          Superset {we.superset}
+                          {t('Superset {label}', { label: we.superset })}
                         </span>
                       )}
                     </button>
                     <div className="flex items-center gap-1">
+                      {hasDemo(we.name) && (
+                        <button
+                          onClick={() => setDemoFor(we.name)}
+                          className="touch-feedback rounded-full p-1.5 text-muted-foreground"
+                          aria-label={t('How to do {name}', { name: tc(we.name) })}
+                        >
+                          <CirclePlay size={17} />
+                        </button>
+                      )}
                       <span className="flex items-center gap-1 rounded-full bg-secondary px-2 py-1 text-xs font-medium text-muted-foreground">
                         <Timer size={12} />
                         {restLabel(we.rest_seconds ?? user?.default_rest_seconds ?? 120)}
@@ -298,7 +324,7 @@ export default function ActiveWorkoutPage() {
                       <button
                         onClick={() => setMenuExercise(we)}
                         className="touch-feedback rounded-full p-1.5 text-muted-foreground"
-                        aria-label="Exercise options"
+                        aria-label={t('Exercise options')}
                       >
                         <MoreHorizontal size={18} />
                       </button>
@@ -309,20 +335,29 @@ export default function ActiveWorkoutPage() {
                     (we.suggestion_kind === 'deload' ? (
                       <p className="mt-1 flex items-center gap-1.5 text-xs font-medium text-warning">
                         <TrendingDown size={13} className="shrink-0" />
-                        Deload: {we.suggested_weight} {user?.unit ?? 'kg'} suggested after 3 stalled
-                        sessions
+                        {t('Deload: {weight} {unit} suggested after 3 stalled sessions', {
+                          weight: we.suggested_weight,
+                          unit: user?.unit ?? 'kg',
+                        })}
                       </p>
                     ) : we.suggestion_kind === 'target' ? (
                       <p className="mt-1 flex items-center gap-1.5 text-xs font-medium text-primary">
                         <TrendingUp size={13} className="shrink-0" />
-                        Target: ~{we.suggested_weight} {user?.unit ?? 'kg'} to start — seeded from
-                        your TM, adjust to the rep range
+                        {t(
+                          'Target: ~{weight} {unit} to start — seeded from your TM, adjust to the rep range',
+                          { weight: we.suggested_weight, unit: user?.unit ?? 'kg' },
+                        )}
                       </p>
                     ) : (
                       <p className="mt-1 flex items-center gap-1.5 text-xs font-medium text-primary">
                         <TrendingUp size={13} className="shrink-0" />
-                        Progression: {we.suggested_weight} {user?.unit ?? 'kg'} suggested
-                        {we.rep_min != null && we.rep_max != null && ` · target ${we.rep_min}–${we.rep_max} reps`}
+                        {t('Progression: {weight} {unit} suggested', {
+                          weight: we.suggested_weight,
+                          unit: user?.unit ?? 'kg',
+                        })}
+                        {we.rep_min != null &&
+                          we.rep_max != null &&
+                          ` · ${t('target {min}–{max} reps', { min: we.rep_min, max: we.rep_max })}`}
                       </p>
                     ))}
                   {we.note && (
@@ -339,12 +374,15 @@ export default function ActiveWorkoutPage() {
                         <Flame size={13} className="mt-0.5 shrink-0 text-record" />
                         <span>
                           <span className="block text-xs font-semibold text-record">
-                            Last set is AMRAP — as many reps as possible
+                            {t('Last set is AMRAP — as many reps as possible')}
                           </span>
                           {workout.amrap_target?.we_id === we.id && (
                             <span className="tnum block text-xs text-muted-foreground">
-                              beat {workout.amrap_target.beat_reps} reps at{' '}
-                              {workout.amrap_target.weight} {user?.unit ?? 'kg'} to top your best
+                              {t('beat {reps} reps at {weight} {unit} to top your best', {
+                                reps: workout.amrap_target.beat_reps,
+                                weight: workout.amrap_target.weight,
+                                unit: user?.unit ?? 'kg',
+                              })}
                             </span>
                           )}
                         </span>
@@ -355,10 +393,16 @@ export default function ActiveWorkoutPage() {
                   <div
                     className={`mt-2 grid ${rpeEnabled ? SET_GRID_RPE : SET_GRID} gap-2 pb-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase`}
                   >
-                    <span className="text-center">Set</span>
-                    <span className="text-center">Previous</span>
-                    <span className="text-center">{user?.unit ?? 'kg'}</span>
-                    <span className="text-center">Reps</span>
+                    <span className="text-center">{t('col|Set')}</span>
+                    <span className="text-center">{t('col|Previous')}</span>
+                    {/* The number entered is one implement's weight; say so
+                        where a pair would otherwise make it ambiguous. */}
+                    <span className="text-center">
+                      {we.load_mode
+                        ? t('{unit} each', { unit: user?.unit ?? 'kg' })
+                        : (user?.unit ?? 'kg')}
+                    </span>
+                    <span className="text-center">{t('col|Reps')}</span>
                     {rpeEnabled && <span className="text-center">RPE</span>}
                     <span />
                   </div>
@@ -402,7 +446,7 @@ export default function ActiveWorkoutPage() {
                     onClick={() => addSet(we.id)}
                     className="touch-feedback mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg bg-secondary py-2 text-sm font-semibold text-secondary-foreground"
                   >
-                    <Plus size={16} /> Add set
+                    <Plus size={16} /> {t('Add set')}
                   </button>
                 </section>
               ))}
@@ -412,14 +456,14 @@ export default function ActiveWorkoutPage() {
               onClick={() => setPickerOpen(true)}
               className="touch-feedback mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed py-3.5 font-semibold text-primary"
             >
-              <Plus size={18} /> Add exercise
+              <Plus size={18} /> {t('Add exercise')}
             </button>
 
             <button
               onClick={() => setConfirmDiscard(true)}
               className="touch-feedback mx-auto mt-6 flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-destructive"
             >
-              <X size={16} /> Cancel workout
+              <X size={16} /> {t('Cancel workout')}
             </button>
           </main>
 
@@ -462,7 +506,7 @@ export default function ActiveWorkoutPage() {
               try {
                 await setSupersetLink(firstId, true)
               } catch {
-                toast('Could not link the superset')
+                toast(t('Could not link the superset'))
               }
             }
             return
@@ -482,7 +526,7 @@ export default function ActiveWorkoutPage() {
           try {
             await swapExercise(target.id, exercise.id)
           } catch {
-            toast('Could not swap the exercise')
+            toast(t('Could not swap the exercise'))
           }
         }}
       />
@@ -490,17 +534,17 @@ export default function ActiveWorkoutPage() {
       <Sheet
         open={markerSet != null}
         onClose={() => setMarkerSet(null)}
-        title={markerSet ? `Set ${markerSet.position + 1}` : undefined}
+        title={markerSet ? t('Set {n}', { n: markerSet.position + 1 }) : undefined}
       >
         {markerSet && (
           <div className="flex flex-col gap-1 pt-1 pb-2">
             {(
               [
-                { label: 'Working set', hint: 'Counts toward PRs and volume', warmup: false, type: null },
-                { label: 'Warm-up', hint: 'Excluded from PRs and volume', warmup: true, type: null },
-                { label: 'Drop set', hint: 'Reduced weight straight after a working set', warmup: false, type: 'drop' as const },
-                { label: 'To failure', hint: 'Taken to technical failure', warmup: false, type: 'failure' as const },
-                { label: 'AMRAP — max reps', hint: 'This set is the measurement: go as far as you can', warmup: false, type: 'amrap' as const },
+                { label: t('Working set'), hint: t('Counts toward PRs and volume'), warmup: false, type: null },
+                { label: t('Warm-up'), hint: t('Excluded from PRs and volume'), warmup: true, type: null },
+                { label: t('Drop set'), hint: t('Reduced weight straight after a working set'), warmup: false, type: 'drop' as const },
+                { label: t('To failure'), hint: t('Taken to technical failure'), warmup: false, type: 'failure' as const },
+                { label: t('AMRAP — max reps'), hint: t('This set is the measurement: go as far as you can'), warmup: false, type: 'amrap' as const },
               ] as const
             ).map((opt) => {
               const active =
@@ -535,11 +579,15 @@ export default function ActiveWorkoutPage() {
         )}
       </Sheet>
 
-      <Sheet open={menuExercise != null} onClose={() => setMenuExercise(null)} title={menuExercise?.name}>
+      <Sheet
+        open={menuExercise != null}
+        onClose={() => setMenuExercise(null)}
+        title={menuExercise ? tc(menuExercise.name) : undefined}
+      >
         {menuExercise && (
           <div className="flex flex-col gap-3 pt-1">
             <label className="flex flex-col gap-1.5 text-sm font-medium">
-              Exercise note
+              {t('Exercise note')}
               <textarea
                 defaultValue={menuExercise.note}
                 onBlur={(e) =>
@@ -548,9 +596,9 @@ export default function ActiveWorkoutPage() {
                     body: { text: e.target.value },
                   })
                     .then(() => refresh())
-                    .catch(() => toast('Could not save the note'))
+                    .catch(() => toast(t('Could not save the note')))
                 }
-                placeholder="Seat height, cues, grip width — pinned to this exercise everywhere"
+                placeholder={t('Seat height, cues, grip width — pinned to this exercise everywhere')}
                 rows={2}
                 className="rounded-lg border border-input bg-card px-3 py-2 text-base outline-none focus:ring-2 focus:ring-ring"
               />
@@ -565,8 +613,8 @@ export default function ActiveWorkoutPage() {
               >
                 {menuExercise.superset_with_next ? <Unlink2 size={18} /> : <Link2 size={18} />}
                 {menuExercise.superset_with_next
-                  ? 'Remove superset with next'
-                  : 'Superset with next exercise'}
+                  ? t('Remove superset with next')
+                  : t('Superset with next exercise')}
               </button>
             )}
             <button
@@ -576,7 +624,7 @@ export default function ActiveWorkoutPage() {
               }}
               className="touch-feedback flex items-center gap-3 rounded-lg px-3 py-3 text-left font-medium hover:bg-secondary"
             >
-              <ArrowLeftRight size={18} /> Swap exercise
+              <ArrowLeftRight size={18} /> {t('Swap exercise')}
             </button>
             {(() => {
               const target = warmupTarget(menuExercise)
@@ -593,14 +641,14 @@ export default function ActiveWorkoutPage() {
                         ramp.map((r, i) => ({ position: i, weight: r.weight, reps: r.reps })),
                       )
                     } catch {
-                      toast('Could not add warm-up sets')
+                      toast(t('Could not add warm-up sets'))
                     }
                   }}
                   className="touch-feedback flex items-center gap-3 rounded-lg px-3 py-3 text-left font-medium hover:bg-secondary"
                 >
                   <Flame size={18} />
                   <span>
-                    Add warm-up sets
+                    {t('Add warm-up sets')}
                     <span className="block text-xs font-normal text-muted-foreground">
                       {ramp.map((r) => `${formatSetWeight(r.weight, user?.unit ?? 'kg')} × ${r.reps}`).join(' · ')}
                     </span>
@@ -616,11 +664,11 @@ export default function ActiveWorkoutPage() {
                 }}
                 className="touch-feedback flex items-center gap-3 rounded-lg px-3 py-3 text-left font-medium hover:bg-secondary"
               >
-                <Calculator size={18} /> Plate calculator
+                <Calculator size={18} /> {t('Plate calculator')}
               </button>
             )}
             <label className="flex items-center justify-between gap-2 text-sm font-medium">
-              Rest timer for this exercise
+              {t('Rest timer for this exercise')}
               <select
                 value={menuExercise.rest_seconds ?? 'default'}
                 onChange={async (e) => {
@@ -631,7 +679,7 @@ export default function ActiveWorkoutPage() {
                 className="h-10 rounded-lg border border-input bg-card px-2 text-sm outline-none"
               >
                 <option value="default">
-                  Default ({restLabel(user?.default_rest_seconds ?? 120)})
+                  {t('Default ({rest})', { rest: restLabel(user?.default_rest_seconds ?? 120) })}
                 </option>
                 {REST_OPTIONS.map((s) => (
                   <option key={s} value={s}>
@@ -647,7 +695,7 @@ export default function ActiveWorkoutPage() {
               }}
               className="touch-feedback flex items-center gap-3 rounded-lg px-3 py-3 text-left font-medium text-destructive hover:bg-secondary"
             >
-              <Trash2 size={18} /> Remove from workout
+              <Trash2 size={18} /> {t('Remove from workout')}
             </button>
           </div>
         )}
@@ -656,20 +704,22 @@ export default function ActiveWorkoutPage() {
       <Sheet
         open={peekExercise != null}
         onClose={() => setPeekExercise(null)}
-        title={peekExercise ? `Recent — ${peekExercise.name}` : undefined}
+        title={
+          peekExercise ? t('Recent — {name}', { name: tc(peekExercise.name) }) : undefined
+        }
       >
         {peekSessions == null ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">Loading…</p>
+          <p className="py-6 text-center text-sm text-muted-foreground">{t('Loading…')}</p>
         ) : peekSessions.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
-            No previous sessions of this exercise yet.
+            {t('No previous sessions of this exercise yet.')}
           </p>
         ) : (
           <div className="flex flex-col gap-3 pt-1 pb-2">
             {peekSessions.map((session) => (
               <div key={session.workout_id} className="rounded-xl border bg-card p-3.5">
                 <div className="flex items-baseline justify-between text-sm">
-                  <span className="font-medium">{session.name}</span>
+                  <span className="font-medium">{tc(session.name)}</span>
                   <span className="text-muted-foreground">{formatRelativeDate(session.date)}</span>
                 </div>
                 <div className="tnum mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-sm text-muted-foreground">
@@ -685,6 +735,12 @@ export default function ActiveWorkoutPage() {
         )}
       </Sheet>
 
+      <ExerciseDemoSheet
+        name={demoName ?? ''}
+        open={demoName != null}
+        onClose={() => setDemoFor(null)}
+      />
+
       <PlateCalculator
         key={plateExercise?.id ?? 'closed'}
         open={plateExercise != null}
@@ -693,14 +749,14 @@ export default function ActiveWorkoutPage() {
         unit={user?.unit ?? 'kg'}
       />
 
-      <Sheet open={workoutMenu} onClose={() => setWorkoutMenu(false)} title="Workout options">
+      <Sheet open={workoutMenu} onClose={() => setWorkoutMenu(false)} title={t('Workout options')}>
         <div className="flex flex-col gap-3 pt-1">
           <label className="flex flex-col gap-1.5 text-sm font-medium">
-            Notes
+            {t('Notes')}
             <textarea
               defaultValue={workout?.notes ?? ''}
               onBlur={(e) => updateNotes(e.target.value)}
-              placeholder="How did it go?"
+              placeholder={t('How did it go?')}
               rows={3}
               className="rounded-lg border border-input bg-card px-3 py-2 text-base outline-none focus:ring-2 focus:ring-ring"
             />
@@ -712,7 +768,7 @@ export default function ActiveWorkoutPage() {
             }}
             className="touch-feedback flex items-center gap-3 rounded-lg px-3 py-3 text-left font-medium text-destructive hover:bg-secondary"
           >
-            <Trash2 size={18} /> Discard workout
+            <Trash2 size={18} /> {t('Discard workout')}
           </button>
         </div>
       </Sheet>
@@ -720,13 +776,19 @@ export default function ActiveWorkoutPage() {
       <ConfirmSheet
         open={confirmDiscard}
         onClose={() => setConfirmDiscard(false)}
-        title="Discard workout?"
+        title={t('Discard workout?')}
         message={
-          completedCount > 0
-            ? `This throws away ${completedCount} completed ${completedCount === 1 ? 'set' : 'sets'} — it won't appear in your history.`
-            : 'This workout will be thrown away.'
+          completedCount > 1
+            ? t("This throws away {n} completed sets — it won't appear in your history.", {
+                n: completedCount,
+              })
+            : completedCount === 1
+              ? t("This throws away {n} completed set — it won't appear in your history.", {
+                  n: completedCount,
+                })
+              : t('This workout will be thrown away.')
         }
-        actionLabel="Discard workout"
+        actionLabel={t('Discard workout')}
         destructive
         onConfirm={() => {
           setConfirmDiscard(false)
@@ -734,23 +796,31 @@ export default function ActiveWorkoutPage() {
         }}
       />
 
-      <Sheet open={confirmFinish} onClose={() => setConfirmFinish(false)} title="Finish workout?">
+      <Sheet
+        open={confirmFinish}
+        onClose={() => setConfirmFinish(false)}
+        title={t('Finish workout?')}
+      >
         <div className="flex flex-col gap-3 pt-1">
           <p className="text-sm text-muted-foreground">
             {completedCount === 0
-              ? 'No completed sets yet — check off at least one set, or discard the workout.'
-              : `${completedCount} completed ${completedCount === 1 ? 'set' : 'sets'}${
-                  incompleteCount > 0
-                    ? ` — ${incompleteCount} incomplete ${incompleteCount === 1 ? 'set' : 'sets'} will be discarded`
-                    : ''
-                }.`}
+              ? t('No completed sets yet — check off at least one set, or discard the workout.')
+              : (completedCount === 1
+                  ? t('{n} completed set', { n: completedCount })
+                  : t('{n} completed sets', { n: completedCount })) +
+                (incompleteCount > 0
+                  ? incompleteCount === 1
+                    ? ` — ${t('{n} incomplete set will be discarded', { n: incompleteCount })}`
+                    : ` — ${t('{n} incomplete sets will be discarded', { n: incompleteCount })}`
+                  : '') +
+                t('sentence|.')}
           </p>
           <button
             onClick={doFinish}
             disabled={completedCount === 0}
             className="touch-feedback flex h-12 items-center justify-center gap-2 rounded-xl bg-primary font-semibold text-primary-foreground disabled:opacity-50"
           >
-            <Flag size={18} /> Finish workout
+            <Flag size={18} /> {t('Finish workout')}
           </button>
           {completedCount === 0 && (
             <button
@@ -760,7 +830,7 @@ export default function ActiveWorkoutPage() {
               }}
               className="touch-feedback flex h-12 items-center justify-center gap-2 rounded-xl bg-secondary font-semibold text-destructive"
             >
-              <Trash2 size={18} /> Discard workout
+              <Trash2 size={18} /> {t('Discard workout')}
             </button>
           )}
         </div>

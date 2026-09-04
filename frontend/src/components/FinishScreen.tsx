@@ -1,6 +1,7 @@
 import { Check, Share, Trophy } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { formatDuration, formatRelativeDate, formatVolume } from '../lib/format'
+import { getLocale, t, tc } from '../lib/i18n'
 import { shareWorkoutCard } from '../lib/shareCard'
 import { toast } from '../lib/toast'
 import type { FinishResult } from '../lib/types'
@@ -81,7 +82,10 @@ function Confetti() {
   )
 }
 
+/** English ordinals only — Chinese counts with a measure word instead, so the
+ *  zh strings interpolate the bare number and skip this entirely. */
 function ordinal(n: number): string {
+  if (getLocale() !== 'en') return String(n)
   if (n % 100 >= 11 && n % 100 <= 13) return `${n}th`
   return `${n}${['th', 'st', 'nd', 'rd'][Math.min(n % 10, 4)] ?? 'th'}`
 }
@@ -99,7 +103,7 @@ export default function FinishScreen({ summary, unit, onDone }: FinishScreenProp
     try {
       await shareWorkoutCard(summary, unit)
     } catch {
-      toast('Could not create the share image')
+      toast(t('Could not create the share image'))
     }
     setSharing(false)
   }
@@ -114,18 +118,22 @@ export default function FinishScreen({ summary, unit, onDone }: FinishScreenProp
           <Check size={40} strokeWidth={3} />
         </div>
         <h1 className="animate-card-appear mt-5 text-3xl" style={{ animationDelay: '200ms' }}>
-          Workout complete
+          {t('Workout complete')}
         </h1>
         <p
           className="animate-card-appear mt-1.5 text-sm text-muted-foreground"
           style={{ animationDelay: '280ms' }}
         >
           {summary.pending ? (
-            <>{summary.name} · saved offline — syncs when you reconnect</>
+            <>{t('{name} · saved offline — syncs when you reconnect', { name: tc(summary.name) })}</>
           ) : (
             <>
-              {summary.name} · your {ordinal(summary.workout_number)} workout
-              {summary.week_workouts > 1 && ` · ${ordinal(summary.week_workouts)} this week`}
+              {t('{name} · your {nth} workout', {
+                name: tc(summary.name),
+                nth: ordinal(summary.workout_number),
+              })}
+              {summary.week_workouts > 1 &&
+                ` · ${t('{nth} this week', { nth: ordinal(summary.week_workouts) })}`}
             </>
           )}
         </p>
@@ -136,15 +144,15 @@ export default function FinishScreen({ summary, unit, onDone }: FinishScreenProp
         >
           <div className="rounded-xl border bg-card p-3">
             <div className="tnum text-lg font-semibold">{formatDuration(summary.duration_seconds)}</div>
-            <div className="text-xs text-muted-foreground">Duration</div>
+            <div className="text-xs text-muted-foreground">{t('Duration')}</div>
           </div>
           <div className="rounded-xl border bg-card p-3">
             <div className="tnum text-lg font-semibold">{formatVolume(summary.total_volume, unit)}</div>
-            <div className="text-xs text-muted-foreground">Volume</div>
+            <div className="text-xs text-muted-foreground">{t('Volume')}</div>
           </div>
           <div className="rounded-xl border bg-card p-3">
             <div className="tnum text-lg font-semibold">{summary.total_sets}</div>
-            <div className="text-xs text-muted-foreground">Sets</div>
+            <div className="text-xs text-muted-foreground">{t('Sets')}</div>
           </div>
         </div>
 
@@ -163,8 +171,10 @@ export default function FinishScreen({ summary, unit, onDone }: FinishScreenProp
                 rounded > 0 ? 'text-success' : rounded < 0 ? 'text-muted-foreground' : 'text-muted-foreground'
               return (
                 <span className={cls}>
-                  {rounded > 0 ? '+' : ''}
-                  {rounded}% volume vs last time ({formatRelativeDate(summary.comparison.prev_date)})
+                  {t('{delta}% volume vs last time ({when})', {
+                    delta: `${rounded > 0 ? '+' : ''}${rounded}`,
+                    when: formatRelativeDate(summary.comparison!.prev_date),
+                  })}
                 </span>
               )
             })()}
@@ -176,7 +186,7 @@ export default function FinishScreen({ summary, unit, onDone }: FinishScreenProp
             className="animate-card-appear mt-4 text-sm text-muted-foreground"
             style={{ animationDelay: '440ms' }}
           >
-            Personal records will be detected when the workout syncs.
+            {t('Personal records will be detected when the workout syncs.')}
           </p>
         )}
 
@@ -186,7 +196,7 @@ export default function FinishScreen({ summary, unit, onDone }: FinishScreenProp
             style={{ animationDelay: '440ms' }}
           >
             <h2 className="mb-2 text-left text-sm font-semibold tracking-wide text-muted-foreground uppercase">
-              Personal records
+              {t('Personal records')}
             </h2>
             <div className="flex flex-col gap-1.5">
               {summary.prs.map((pr, i) => (
@@ -200,13 +210,13 @@ export default function FinishScreen({ summary, unit, onDone }: FinishScreenProp
                     style={{ animationDelay: `${550 + i * 120}ms` }}
                   />
                   <span className="min-w-0 flex-1 truncate text-left font-medium">
-                    {pr.exercise_name}
+                    {tc(pr.exercise_name)}
                   </span>
                   <span className="tnum text-muted-foreground">
                     {pr.kind === 'weight' && `${pr.value} ${unit} × ${pr.reps}`}
                     {pr.kind === '1rm' &&
-                      `est. 1RM ${pr.value} ${unit}${pr.weight ? ` (${pr.weight} × ${pr.reps})` : ''}`}
-                    {pr.kind === 'reps' && `${pr.value} reps`}
+                      `${t('est. 1RM')} ${pr.value} ${unit}${pr.weight ? ` (${pr.weight} × ${pr.reps})` : ''}`}
+                    {pr.kind === 'reps' && t('{n} reps', { n: pr.value })}
                   </span>
                 </div>
               ))}
@@ -221,13 +231,13 @@ export default function FinishScreen({ summary, unit, onDone }: FinishScreenProp
           disabled={sharing}
           className="touch-feedback flex h-13 items-center justify-center gap-2 rounded-xl bg-secondary px-5 py-3.5 text-base font-semibold text-secondary-foreground disabled:opacity-60"
         >
-          <Share size={18} /> {sharing ? 'Rendering…' : 'Share'}
+          <Share size={18} /> {sharing ? t('Rendering…') : t('Share')}
         </button>
         <button
           onClick={onDone}
           className="touch-feedback h-13 flex-1 rounded-xl bg-primary py-3.5 text-base font-semibold text-primary-foreground"
         >
-          Done
+          {t('Done')}
         </button>
       </div>
     </div>

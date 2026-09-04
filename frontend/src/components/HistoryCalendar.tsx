@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import Sheet from './Sheet'
 import { api } from '../lib/api'
 import { formatTime, formatVolume, parseUTC } from '../lib/format'
+import { intlLocale, t } from '../lib/i18n'
 import type { WorkoutSummary } from '../lib/types'
 import { cn } from '../lib/utils'
 
@@ -54,17 +55,17 @@ export default function HistoryCalendar({ unit }: { unit: string }) {
         <button
           onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}
           className="touch-feedback rounded-full p-2 text-muted-foreground"
-          aria-label="Previous month"
+          aria-label={t('Previous month')}
         >
           <ChevronLeft size={20} />
         </button>
         <h2 className="text-base">
-          {month.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+          {month.toLocaleDateString(intlLocale(), { month: 'long', year: 'numeric' })}
         </h2>
         <button
           onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}
           className="touch-feedback rounded-full p-2 text-muted-foreground"
-          aria-label="Next month"
+          aria-label={t('Next month')}
         >
           <ChevronRight size={20} />
         </button>
@@ -73,7 +74,7 @@ export default function HistoryCalendar({ unit }: { unit: string }) {
       <div className="grid grid-cols-7 gap-1.5">
         {WEEKDAYS.map((d) => (
           <div key={d} className="pb-1 text-center text-[11px] font-semibold text-muted-foreground">
-            {d}
+            {t(`weekday|${d}`)}
           </div>
         ))}
         {Array.from({ length: leadingBlanks }, (_, i) => (
@@ -111,7 +112,7 @@ export default function HistoryCalendar({ unit }: { unit: string }) {
       <Sheet
         open={dayWorkouts != null}
         onClose={() => setDayWorkouts(null)}
-        title="Workouts that day"
+        title={t('Workouts that day')}
       >
         <div className="flex flex-col gap-2 pt-1 pb-2">
           {dayWorkouts?.map((w) => (
@@ -125,7 +126,7 @@ export default function HistoryCalendar({ unit }: { unit: string }) {
                 <span className="text-sm text-muted-foreground">{formatTime(w.started_at)}</span>
               </div>
               <p className="tnum mt-1 text-sm text-muted-foreground">
-                {w.total_sets} sets · {formatVolume(w.total_volume, unit)}
+                {t('{n} sets', { n: w.total_sets })} · {formatVolume(w.total_volume, unit)}
               </p>
             </button>
           ))}

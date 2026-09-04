@@ -1,11 +1,14 @@
-import { ChevronLeft, Flame, GripVertical, Link2, Minus, Plus, Trash2 } from 'lucide-react'
+import { ChevronLeft, CirclePlay, Flame, GripVertical, Link2, Minus, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import ConfirmSheet from '../components/ConfirmSheet'
+import ExerciseDemoSheet from '../components/ExerciseDemoSheet'
 import ExercisePicker from '../components/ExercisePicker'
 import Skeleton from '../components/Skeleton'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../lib/api'
+import { hasDemo } from '../lib/exerciseDemos'
+import { t, tc, tm } from '../lib/i18n'
 import type { Exercise, Routine } from '../lib/types'
 import { restLabel } from '../lib/format'
 import { moveItem, useDragReorder } from '../lib/useDragReorder'
@@ -37,6 +40,7 @@ export default function RoutineEditorPage() {
   const [busy, setBusy] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [confirmLeave, setConfirmLeave] = useState(false)
+  const [demoName, setDemoFor] = useState<string | null>(null)
   const { handleProps, itemProps } = useDragReorder(exercises.length, (from, to) =>
     setExercises((xs) => moveItem(xs, from, to)),
   )
@@ -128,7 +132,7 @@ export default function RoutineEditorPage() {
       else await api('/routines', { method: 'POST', body })
       navigate('/')
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to save')
+      setError(e instanceof Error ? tm(e.message) : t('Failed to save'))
     } finally {
       setBusy(false)
     }
@@ -142,11 +146,11 @@ export default function RoutineEditorPage() {
         <button
           onClick={() => (dirty ? setConfirmLeave(true) : navigate(-1))}
           className="touch-feedback -ml-2 rounded-full p-2 text-muted-foreground"
-          aria-label="Back"
+          aria-label={t('Back')}
         >
           <ChevronLeft size={24} />
         </button>
-        <h1 className="text-2xl">{editing ? 'Edit template' : 'New template'}</h1>
+        <h1 className="text-2xl">{editing ? t('Edit template') : t('New template')}</h1>
       </header>
 
       <input
@@ -155,7 +159,7 @@ export default function RoutineEditorPage() {
           setDirty(true)
           setName(e.target.value)
         }}
-        placeholder="Template name (e.g. Push Day)"
+        placeholder={t('Template name (e.g. Push Day)')}
         className="h-12 w-full rounded-lg border border-input bg-card px-4 text-base outline-none focus:ring-2 focus:ring-ring"
       />
 
@@ -165,31 +169,40 @@ export default function RoutineEditorPage() {
             <div className="flex items-center gap-2">
               <button
                 {...handleProps(i)}
-                aria-label={`Reorder ${exercise.name}`}
+                aria-label={t('Reorder {name}', { name: tc(exercise.name) })}
                 className="-m-1 shrink-0 rounded p-1 text-muted-foreground/50"
               >
                 <GripVertical size={16} />
               </button>
-              <span className="min-w-0 flex-1 truncate font-medium">{exercise.name}</span>
+              <span className="min-w-0 flex-1 truncate font-medium">{tc(exercise.name)}</span>
+              {hasDemo(exercise.name) && (
+                <button
+                  onClick={() => setDemoFor(exercise.name)}
+                  className="touch-feedback rounded-full p-1.5 text-muted-foreground"
+                  aria-label={t('How to do {name}', { name: tc(exercise.name) })}
+                >
+                  <CirclePlay size={16} />
+                </button>
+              )}
               <button
                 onClick={() => {
                   setDirty(true)
                   setExercises((xs) => xs.filter((_, j) => j !== i))
                 }}
                 className="touch-feedback rounded-full p-1.5 text-muted-foreground"
-                aria-label="Remove exercise"
+                aria-label={t('Remove exercise')}
               >
                 <Trash2 size={16} />
               </button>
             </div>
             <div className="mt-3 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Sets</span>
+                <span className="text-sm text-muted-foreground">{t('Sets')}</span>
                 <div className="flex items-center rounded-lg bg-secondary">
                   <button
                     onClick={() => update(i, { set_count: Math.max(1, exercise.set_count - 1) })}
                     className="touch-feedback p-2"
-                    aria-label="Fewer sets"
+                    aria-label={t('Fewer sets')}
                   >
                     <Minus size={14} />
                   </button>
@@ -197,14 +210,14 @@ export default function RoutineEditorPage() {
                   <button
                     onClick={() => update(i, { set_count: Math.min(20, exercise.set_count + 1) })}
                     className="touch-feedback p-2"
-                    aria-label="More sets"
+                    aria-label={t('More sets')}
                   >
                     <Plus size={14} />
                   </button>
                 </div>
               </div>
               <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                Rest
+                {t('Rest')}
                 <select
                   value={exercise.rest_seconds ?? 'default'}
                   onChange={(e) =>
@@ -214,7 +227,7 @@ export default function RoutineEditorPage() {
                   }
                   className="h-9 rounded-lg border border-input bg-card px-2 text-sm text-foreground outline-none"
                 >
-                  <option value="default">Default ({defaultRest})</option>
+                  <option value="default">{t('Default ({rest})', { rest: defaultRest })}</option>
                   {REST_OPTIONS.map((s) => (
                     <option key={s} value={s}>
                       {restLabel(s)}
@@ -225,14 +238,14 @@ export default function RoutineEditorPage() {
             </div>
             <div className="mt-2.5 flex items-center justify-between gap-3">
               <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                Reps
+                {t('Reps')}
                 <input
                   value={exercise.rep_min ?? ''}
                   onChange={(e) =>
                     update(i, { rep_min: e.target.value ? Number(e.target.value) : null })
                   }
                   inputMode="numeric"
-                  placeholder="min"
+                  placeholder={t('placeholder|min')}
                   className="tnum h-9 w-12 rounded-lg border border-input bg-card px-1 text-center text-sm text-foreground outline-none"
                 />
                 –
@@ -242,13 +255,13 @@ export default function RoutineEditorPage() {
                     update(i, { rep_max: e.target.value ? Number(e.target.value) : null })
                   }
                   inputMode="numeric"
-                  placeholder="max"
+                  placeholder={t('placeholder|max')}
                   className="tnum h-9 w-12 rounded-lg border border-input bg-card px-1 text-center text-sm text-foreground outline-none"
                 />
               </label>
               {exercise.rep_max != null && (
                 <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                  Progress
+                  {t('Progress')}
                   <select
                     value={exercise.increment ?? (user?.unit === 'lb' ? 5 : 2.5)}
                     onChange={(e) => update(i, { increment: Number(e.target.value) })}
@@ -272,7 +285,7 @@ export default function RoutineEditorPage() {
               }
             >
               <Flame size={13} />
-              {exercise.amrap_last_set ? 'Last set AMRAP' : 'Last set AMRAP?'}
+              {exercise.amrap_last_set ? t('Last set AMRAP') : t('Last set AMRAP?')}
             </button>
             {i < exercises.length - 1 && (
               <button
@@ -284,7 +297,9 @@ export default function RoutineEditorPage() {
                 }
               >
                 <Link2 size={13} />
-                {exercise.superset_with_next ? 'Superset with next' : 'Superset with next?'}
+                {exercise.superset_with_next
+                  ? t('Superset with next')
+                  : t('Superset with next?')}
               </button>
             )}
           </div>
@@ -295,7 +310,7 @@ export default function RoutineEditorPage() {
         onClick={() => setPickerOpen(true)}
         className="touch-feedback mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed py-3.5 font-semibold text-primary"
       >
-        <Plus size={18} /> Add exercise
+        <Plus size={18} /> {t('Add exercise')}
       </button>
 
       {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
@@ -305,20 +320,26 @@ export default function RoutineEditorPage() {
         disabled={busy || !name.trim() || exercises.length === 0}
         className="touch-feedback mt-5 h-12 w-full rounded-xl bg-primary text-base font-semibold text-primary-foreground disabled:opacity-50"
       >
-        {busy ? 'Saving…' : 'Save template'}
+        {busy ? t('Saving…') : t('Save template')}
       </button>
 
       <ConfirmSheet
         open={confirmLeave}
         onClose={() => setConfirmLeave(false)}
-        title="Discard changes?"
-        message="Your edits to this template haven't been saved."
-        actionLabel="Discard changes"
+        title={t('Discard changes?')}
+        message={t("Your edits to this template haven't been saved.")}
+        actionLabel={t('Discard changes')}
         destructive
         onConfirm={() => {
           setConfirmLeave(false)
           navigate(-1)
         }}
+      />
+
+      <ExerciseDemoSheet
+        name={demoName ?? ''}
+        open={demoName != null}
+        onClose={() => setDemoFor(null)}
       />
 
       <ExercisePicker open={pickerOpen} onClose={() => setPickerOpen(false)} onPick={addExercise} />

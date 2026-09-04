@@ -1,6 +1,7 @@
 import { X } from 'lucide-react'
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { cn } from '../lib/utils'
+import { t } from '../lib/i18n'
 import { getAppHeight } from '../lib/viewport'
 
 const EXIT_MS = 340
@@ -185,7 +186,7 @@ export default function Sheet({ open, onClose, title, children, full }: SheetPro
               onClick={onClose}
               onPointerDown={(e) => e.stopPropagation()}
               className="touch-feedback -mr-1 rounded-full p-2 text-muted-foreground hover:bg-secondary"
-              aria-label="Close"
+              aria-label={t('Close')}
             >
               <X size={20} />
             </button>

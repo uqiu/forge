@@ -9,12 +9,19 @@ interface DragState {
 /** Pointer-based list reordering. Attach `handleProps(i)` to each row's grip
  *  and `itemProps(i)` to the row itself; rows shift live and `onCommit` fires
  *  with the final (from, to) on release. The handle sets touch-action:none so
- *  dragging never fights the page scroll. */
+ *  dragging never fights the page scroll.
+ *
+ *  `onCommit` fires exactly once per drag, so it is safe to reorder with the
+ *  updater form of setState. */
 export function useDragReorder(count: number, onCommit: (from: number, to: number) => void) {
   const [drag, setDrag] = useState<DragState | null>(null)
   const itemRefs = useRef<(HTMLElement | null)[]>([])
   const startY = useRef(0)
   const rects = useRef<{ top: number; height: number }[]>([])
+  // The live drag position. `drag` mirrors it into state to re-render the
+  // rows; the ref is what the pointer handlers read and write, so the commit
+  // never has to go looking for it inside a state updater.
+  const dragRef = useRef<DragState | null>(null)
 
   const setItemRef = (index: number) => (el: HTMLElement | null) => {
     itemRefs.current[index] = el
@@ -41,22 +48,30 @@ export function useDragReorder(count: number, onCommit: (from: number, to: numbe
         const rect = el?.getBoundingClientRect()
         return { top: rect?.top ?? 0, height: rect?.height ?? 0 }
       })
-      setDrag({ from: index, to: index, dy: 0 })
+      dragRef.current = { from: index, to: index, dy: 0 }
+      setDrag(dragRef.current)
     },
     onPointerMove: (e: ReactPointerEvent) => {
-      setDrag((d) => {
-        if (!d) return d
-        const dy = e.clientY - startY.current
-        return { ...d, dy, to: targetIndex(d.from, dy) }
-      })
+      const d = dragRef.current
+      if (!d) return
+      const dy = e.clientY - startY.current
+      dragRef.current = { ...d, dy, to: targetIndex(d.from, dy) }
+      setDrag(dragRef.current)
     },
     onPointerUp: () => {
-      setDrag((d) => {
-        if (d && d.from !== d.to) onCommit(d.from, d.to)
-        return null
-      })
+      // Commit outside the state updater. An updater has to be pure — React
+      // calls it twice in development to prove it — so a caller that reorders
+      // with the updater form of setState would apply the move twice, which
+      // for adjacent rows lands exactly back where it started.
+      const d = dragRef.current
+      dragRef.current = null
+      setDrag(null)
+      if (d && d.from !== d.to) onCommit(d.from, d.to)
     },
-    onPointerCancel: () => setDrag(null),
+    onPointerCancel: () => {
+      dragRef.current = null
+      setDrag(null)
+    },
   })
 
   const itemProps = (index: number) => {

@@ -10,6 +10,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useWorkout } from '../contexts/WorkoutContext'
 import { api } from '../lib/api'
 import { getCached, useCachedState } from '../lib/dataCache'
+import { t, tc, tm } from '../lib/i18n'
 import { toast } from '../lib/toast'
 import type { Plan, Routine } from '../lib/types'
 import { formatRelativeDate, parseUTC, restLabel } from '../lib/format'
@@ -45,11 +46,15 @@ function PlansSheet({
   const [plans, setPlans] = useCachedState<Plan[]>('plans', [])
   const [adopting, setAdopting] = useState<string | null>(null)
 
+  // The cache paints instantly, but it can't be the only source: the plan
+  // library is server-owned and grows when the server updates, and the cache
+  // outlives a reload in IndexedDB. Revalidate on every open.
   useEffect(() => {
-    if (open && plans.length === 0) {
-      api<Plan[]>('/plans').then(setPlans).catch(() => {})
-    }
-  }, [open, plans.length])
+    if (!open) return
+    api<Plan[]>('/plans')
+      .then(setPlans)
+      .catch(() => {})
+  }, [open, setPlans])
 
   const adopt = async (plan: Plan) => {
     setAdopting(plan.key)
@@ -63,21 +68,21 @@ function PlansSheet({
   }
 
   return (
-    <Sheet open={open} onClose={onClose} title="Training plans" full>
+    <Sheet open={open} onClose={onClose} title={t('Training plans')} full>
       <p className="mb-3 text-sm text-muted-foreground">
-        Proven starting points — adding a plan copies its templates into yours, ready to edit.
+        {t('Proven starting points — adding a plan copies its templates into yours, ready to edit.')}
       </p>
       <div className="flex flex-col gap-3 pb-2">
         {plans.map((plan) => (
           <div key={plan.key} className="rounded-xl border bg-card p-4">
-            <h3 className="text-lg">{plan.name}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">{plan.description}</p>
+            <h3 className="text-lg">{tc(plan.name)}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">{tc(plan.description)}</p>
             <div className="mt-2.5 flex flex-col gap-1">
               {plan.routines.map((r) => (
                 <p key={r.name} className="text-sm">
-                  <span className="font-medium">{r.name}</span>{' '}
+                  <span className="font-medium">{tc(r.name)}</span>{' '}
                   <span className="text-muted-foreground">
-                    — {r.exercises.map((e) => `${e.set_count}×${e.name}`).join(', ')}
+                    — {r.exercises.map((e) => `${e.set_count}×${tc(e.name)}`).join(t('list|, '))}
                   </span>
                 </p>
               ))}
@@ -88,8 +93,10 @@ function PlansSheet({
               className="touch-feedback mt-3 w-full rounded-lg bg-accent-soft py-2.5 font-semibold text-primary disabled:opacity-50"
             >
               {adopting === plan.key
-                ? 'Adding…'
-                : `Add ${plan.routines.length} template${plan.routines.length > 1 ? 's' : ''}`}
+                ? t('Adding…')
+                : plan.routines.length > 1
+                  ? t('Add {n} templates', { n: plan.routines.length })
+                  : t('Add {n} template', { n: plan.routines.length })}
             </button>
           </div>
         ))}
@@ -138,9 +145,9 @@ function WeightQuickLog() {
       setLatest({ value: m.value, measured_at: m.measured_at })
       loadRate()
       setOpen(false)
-      toast(`Logged ${m.value} ${unit}`)
+      toast(t('Logged {value} {unit}', { value: m.value, unit }))
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Could not log weight')
+      toast(e instanceof Error ? tm(e.message) : t('Could not log weight'))
     } finally {
       setBusy(false)
     }
@@ -156,18 +163,19 @@ function WeightQuickLog() {
         className="touch-feedback mt-2 flex w-full items-center justify-between rounded-xl border bg-card px-4 py-3"
       >
         <span className="flex items-center gap-2 text-sm font-medium">
-          <Scale size={16} className="text-muted-foreground" /> Log weight
+          <Scale size={16} className="text-muted-foreground" /> {t('Log weight')}
         </span>
         {latest && (
           <span className="tnum text-xs text-muted-foreground">
             {latest.value} {unit}
-            {rate != null && ` · ${rate > 0 ? '↗ +' : rate < 0 ? '↘ ' : '→ '}${rate}/wk`} ·{' '}
-            {formatRelativeDate(latest.measured_at)}
+            {rate != null &&
+              ` · ${rate > 0 ? '↗ +' : rate < 0 ? '↘ ' : '→ '}${rate}${t('/wk')}`}{' '}
+            · {formatRelativeDate(latest.measured_at)}
           </span>
         )}
       </button>
 
-      <Sheet open={open} onClose={() => setOpen(false)} title="Log weight">
+      <Sheet open={open} onClose={() => setOpen(false)} title={t('Log weight')}>
         <div className="flex flex-col gap-3 pb-2">
           <div className="relative">
             <input
@@ -188,7 +196,7 @@ function WeightQuickLog() {
             disabled={busy || !value}
             className="touch-feedback w-full rounded-xl bg-primary py-3 font-semibold text-primary-foreground disabled:opacity-40"
           >
-            Save
+            {t('Save')}
           </button>
         </div>
       </Sheet>
@@ -228,7 +236,9 @@ export default function WorkoutHomePage() {
       return
     }
     try {
-      // Empty workouts get named by time of day
+      // Empty workouts get named by time of day. Stored in English like the
+      // rest of the catalog and translated on display, so the name follows the
+      // language setting instead of freezing whatever was picked that evening.
       const hour = new Date().getHours()
       const autoName =
         hour < 5 || hour >= 21
@@ -241,7 +251,7 @@ export default function WorkoutHomePage() {
       await start(routineId != null ? { routineId } : { name: autoName })
       navigate('/workout', { viewTransition: true })
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not start workout')
+      setError(e instanceof Error ? tm(e.message) : t('Could not start workout'))
     }
   }
 
@@ -255,7 +265,9 @@ export default function WorkoutHomePage() {
     const copy = await api<Routine>('/routines', {
       method: 'POST',
       body: {
-        name: `${routine.name} (copy)`,
+        // A name the user owns and will edit — made in their language now
+        // rather than left for the display layer to guess at later.
+        name: t('{name} (copy)', { name: routine.name }),
         exercises: routine.exercises.map((e) => ({
           exercise_id: e.exercise_id,
           set_count: e.set_count,
@@ -271,7 +283,7 @@ export default function WorkoutHomePage() {
   return (
     <div className="safe-top w-full px-4 md:max-w-3xl">
       <header className="pt-6 pb-4">
-        <h1 className="text-3xl">Workout</h1>
+        <h1 className="text-3xl">{t('page|Workout')}</h1>
       </header>
 
       <button
@@ -279,7 +291,7 @@ export default function WorkoutHomePage() {
         className="touch-feedback flex h-13 w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-base font-semibold text-primary-foreground"
       >
         <Play size={19} className="fill-current" />
-        {workout ? 'Resume workout' : 'Start empty workout'}
+        {workout ? t('Resume workout') : t('Start empty workout')}
       </button>
       {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
 
@@ -288,19 +300,19 @@ export default function WorkoutHomePage() {
       <ProgramsSection />
 
       <div className="mt-8 mb-3 flex items-center justify-between">
-        <h2 className="text-xl">Templates</h2>
+        <h2 className="text-xl">{t('Templates')}</h2>
         <div className="flex items-center gap-1">
           <button
             onClick={() => setPlansOpen(true)}
             className="touch-feedback flex items-center gap-1 rounded-lg px-2 py-1 text-sm font-semibold text-primary"
           >
-            <LibraryBig size={16} /> Plans
+            <LibraryBig size={16} /> {t('Plans')}
           </button>
           <button
             onClick={() => navigate('/routines/new')}
             className="touch-feedback flex items-center gap-1 rounded-lg px-2 py-1 text-sm font-semibold text-primary"
           >
-            <Plus size={16} /> New
+            <Plus size={16} /> {t('New')}
           </button>
         </div>
       </div>
@@ -308,8 +320,8 @@ export default function WorkoutHomePage() {
       {loading ? (
         <CardListSkeleton count={2} className="md:grid-cols-2 xl:grid-cols-3" />
       ) : routines.length === 0 ? (
-        <EmptyState title="No templates yet">
-          Create one, or add a proven plan from the Plans library above.
+        <EmptyState title={t('No templates yet')}>
+          {t('Create one, or add a proven plan from the Plans library above.')}
         </EmptyState>
       ) : (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -322,10 +334,10 @@ export default function WorkoutHomePage() {
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-1.5">
-                  <h3 className="truncate text-lg">{routine.name}</h3>
+                  <h3 className="truncate text-lg">{tc(routine.name)}</h3>
                   {routine.id === nextUp && (
                     <span className="shrink-0 rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-primary">
-                      Up next
+                      {t('Up next')}
                     </span>
                   )}
                 </div>
@@ -334,7 +346,7 @@ export default function WorkoutHomePage() {
                     <button
                       {...handleProps(i)}
                       className="-mt-1 rounded-full p-2 text-muted-foreground/60"
-                      aria-label="Reorder template"
+                      aria-label={t('Reorder template')}
                     >
                       <GripVertical size={18} />
                     </button>
@@ -342,26 +354,29 @@ export default function WorkoutHomePage() {
                   <button
                     onClick={() => setMenuRoutine(routine)}
                     className="touch-feedback -mt-1 -mr-1 rounded-full p-2 text-muted-foreground"
-                    aria-label="Template options"
+                    aria-label={t('Template options')}
                   >
                     <MoreVertical size={18} />
                   </button>
                 </div>
               </div>
               <p className="mt-1 line-clamp-2 flex-1 text-sm text-muted-foreground">
-                {routine.exercises.map((e) => `${e.set_count} × ${e.name}`).join(', ') ||
-                  'No exercises'}
+                {routine.exercises
+                  .map((e) => `${e.set_count} × ${tc(e.name)}`)
+                  .join(t('list|, ')) || t('No exercises')}
               </p>
               {routine.last_performed && (
                 <p className="mt-1.5 text-xs text-muted-foreground/70">
-                  Last performed {formatRelativeDate(routine.last_performed)}
+                  {t('Last performed {when}', {
+                    when: formatRelativeDate(routine.last_performed),
+                  })}
                 </p>
               )}
               <button
                 onClick={() => begin(routine.id)}
                 className="touch-feedback mt-3 w-full rounded-lg bg-accent-soft py-2.5 font-semibold text-primary"
               >
-                {workout ? 'Resume workout' : 'Start workout'}
+                {workout ? t('Resume workout') : t('Start workout')}
               </button>
             </div>
           ))}
@@ -371,9 +386,9 @@ export default function WorkoutHomePage() {
       <ConfirmSheet
         open={deleteRoutineTarget != null}
         onClose={() => setDeleteRoutineTarget(null)}
-        title={`Delete “${deleteRoutineTarget?.name}”?`}
-        message="The template goes away — workouts you logged with it stay in your history."
-        actionLabel="Delete template"
+        title={t('Delete “{name}”?', { name: tc(deleteRoutineTarget?.name ?? '') })}
+        message={t('The template goes away — workouts you logged with it stay in your history.')}
+        actionLabel={t('Delete template')}
         destructive
         onConfirm={() => {
           if (deleteRoutineTarget) deleteRoutine(deleteRoutineTarget)
@@ -387,16 +402,24 @@ export default function WorkoutHomePage() {
         onAdopted={(created) => setRoutines((rs) => [...rs, ...created])}
       />
 
-      <Sheet open={menuRoutine != null} onClose={() => setMenuRoutine(null)} title={menuRoutine?.name}>
+      <Sheet
+        open={menuRoutine != null}
+        onClose={() => setMenuRoutine(null)}
+        title={menuRoutine ? tc(menuRoutine.name) : undefined}
+      >
         {menuRoutine && (
           <div className="flex flex-col gap-1 pt-1">
             <div className="mb-2 text-sm text-muted-foreground">
               {menuRoutine.exercises.map((e) => (
                 <div key={e.position} className="flex justify-between py-0.5">
                   <span>
-                    {e.set_count} × {e.name}
+                    {e.set_count} × {tc(e.name)}
                   </span>
-                  <span>{e.rest_seconds != null ? `rest ${restLabel(e.rest_seconds)}` : ''}</span>
+                  <span>
+                    {e.rest_seconds != null
+                      ? t('rest {clock}', { clock: restLabel(e.rest_seconds) })
+                      : ''}
+                  </span>
                 </div>
               ))}
             </div>
@@ -404,13 +427,13 @@ export default function WorkoutHomePage() {
               onClick={() => navigate(`/routines/${menuRoutine.id}`)}
               className="touch-feedback flex items-center gap-3 rounded-lg px-3 py-3 text-left font-medium hover:bg-secondary"
             >
-              <Pencil size={18} /> Edit template
+              <Pencil size={18} /> {t('Edit template')}
             </button>
             <button
               onClick={() => duplicateRoutine(menuRoutine)}
               className="touch-feedback flex items-center gap-3 rounded-lg px-3 py-3 text-left font-medium hover:bg-secondary"
             >
-              <Copy size={18} /> Duplicate template
+              <Copy size={18} /> {t('Duplicate template')}
             </button>
             <button
               onClick={() => {
@@ -419,7 +442,7 @@ export default function WorkoutHomePage() {
               }}
               className="touch-feedback flex items-center gap-3 rounded-lg px-3 py-3 text-left font-medium text-destructive hover:bg-secondary"
             >
-              <Trash2 size={18} /> Delete template
+              <Trash2 size={18} /> {t('Delete template')}
             </button>
           </div>
         )}

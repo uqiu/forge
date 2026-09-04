@@ -14,6 +14,7 @@ import {
   syncPayload,
   utcStamp,
 } from '../lib/localWorkout'
+import { t } from '../lib/i18n'
 import { isNetworkError, outbox } from '../lib/outbox'
 import { advanceCachedProgram, buildLocalProgramWorkout } from '../lib/programLocal'
 import { syncQueue } from '../lib/syncQueue'
@@ -138,7 +139,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
       if (isNetworkError(e)) return // still offline — retry later
       if (e instanceof ApiError && Date.now() - syncErrorToastAt.current > 300_000) {
         syncErrorToastAt.current = Date.now()
-        toast('Could not sync your workout — will keep trying')
+        toast(t('Could not sync your workout — will keep trying'))
       }
     }
   }, [adopt])
@@ -277,7 +278,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
       }
       const ex = getCachedExercises()?.find((x) => x.id === exerciseId)
       if (!ex) {
-        toast('That exercise is not available offline')
+        toast(t('That exercise is not available offline'))
         return
       }
       let newId: number | undefined
@@ -287,7 +288,13 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
         const we = localExercise(
           base,
           [base - 1],
-          { exercise_id: ex.id, name: ex.name, muscle_group: ex.muscle_group, equipment: ex.equipment },
+          {
+            exercise_id: ex.id,
+            name: ex.name,
+            muscle_group: ex.muscle_group,
+            equipment: ex.equipment,
+            load_mode: ex.load_mode ?? null,
+          },
           { position: w.exercises.length },
         )
         return { ...w, exercises: [...w.exercises, we] }
@@ -349,6 +356,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
                   name: ex.name,
                   muscle_group: ex.muscle_group,
                   equipment: ex.equipment,
+                  load_mode: ex.load_mode ?? null,
                   note: '',
                   // Swapping clears template targets — mirrors the server
                   rep_min: null,
@@ -537,7 +545,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
           setDirty(true)
           return optimistic
         }
-        toast('Could not save the set — try again')
+        toast(t('Could not save the set — try again'))
         throw e
       }
     },
@@ -589,11 +597,11 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
             return { ...we, sets: sets.map((s, i) => ({ ...s, position: i })) }
           }),
         })
-        toast('Set deleted', {
+        toast(t('Set deleted'), {
           kind: 'info',
           duration: 5000,
           action: {
-            label: 'Undo',
+            label: t('Undo'),
             run: async () => {
               if (dirtyRef.current) {
                 applyLocal(restoreLocal)
@@ -614,7 +622,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
                 adopt(w)
               } catch (e) {
                 if (isNetworkError(e)) applyLocal(restoreLocal)
-                else toast('Could not restore the set')
+                else toast(t('Could not restore the set'))
               }
             },
           },

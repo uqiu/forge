@@ -1,8 +1,10 @@
-# Publishes the Docker image to ghcr. Manual only for now — run it from the
-# Actions tab (or `gh workflow run release.yml`) when you want a release.
+# Publishes the Docker image to this repository's GHCR namespace on every main
+# branch update. A manual run can additionally create a versioned tag.
 name: Publish Docker image
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       tag:
@@ -27,13 +29,12 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
-          # amd64 only: the deployment target (Unraid) is x86. The arm64 leg
-          # ran under QEMU and turned cold-cache builds into 45+ minute
-          # ordeals — re-add it here if an ARM host ever joins the fleet.
-          platforms: linux/amd64
+          # arm64 only: the deployment target runs Armbian. Keeping this to
+          # one architecture avoids publishing an unused amd64 image.
+          platforms: linux/arm64
           push: true
           build-args: |
-            VERSION=${{ inputs.tag || 'latest' }}
+            VERSION=${{ inputs.tag || github.sha }}
           tags: |
             ghcr.io/${{ github.repository }}:latest
             ${{ inputs.tag && format('ghcr.io/{0}:{1}', github.repository, inputs.tag) || '' }}

@@ -2,10 +2,20 @@
 /** Forge service worker: app-shell precache + rest-timer push alerts. */
 import { createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching'
 import { NavigationRoute, registerRoute } from 'workbox-routing'
+import { CacheFirst } from 'workbox-strategies'
 
 declare let self: ServiceWorkerGlobalScope & { __WB_MANIFEST: Array<string | { url: string; revision: string | null }> }
 
 precacheAndRoute(self.__WB_MANIFEST)
+
+// Movement demos are kept out of the precache (see vite.config.ts) so the
+// install stays small. Each one is cached the first time it is opened, which
+// makes it available in a gym with no signal from then on. The art is
+// immutable, so cache-first with no expiry is the whole strategy.
+registerRoute(
+  ({ url }) => url.pathname.startsWith('/exercise-demos/'),
+  new CacheFirst({ cacheName: 'exercise-demos' }),
+)
 
 // SPA navigation fallback — API and asset requests hit the network
 registerRoute(

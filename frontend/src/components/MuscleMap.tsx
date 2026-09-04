@@ -1,5 +1,6 @@
 import { memo } from 'react'
 import { BODY_FRONT, BODY_BACK, type BodyPath, type MuscleRegion } from '../lib/bodyPaths'
+import { t } from '../lib/i18n'
 
 const NEUTRAL_BODY = 'color-mix(in oklch, var(--foreground) 5%, transparent)'
 const NEUTRAL_MUSCLE = 'color-mix(in oklch, var(--foreground) 9%, transparent)'
@@ -54,8 +55,8 @@ export default memo(function MuscleMap({
 }) {
   return (
     <div className="flex justify-center gap-3">
-      <Figure paths={BODY_FRONT} viewBox="0 0 724 1448" primary={primary} secondary={secondary} label="Front" />
-      <Figure paths={BODY_BACK} viewBox="724 0 724 1448" primary={primary} secondary={secondary} label="Back" />
+      <Figure paths={BODY_FRONT} viewBox="0 0 724 1448" primary={primary} secondary={secondary} label={t('body|Front')} />
+      <Figure paths={BODY_BACK} viewBox="724 0 724 1448" primary={primary} secondary={secondary} label={t('body|Back')} />
     </div>
   )
 })

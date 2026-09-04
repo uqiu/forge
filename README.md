@@ -108,3 +108,14 @@ forge/
     ├── contexts/     # AuthContext, WorkoutContext
     └── lib/          # api, timer (rest timer engine), theme, format, types
 ```
+
+## Credits
+
+Movement demonstrations in `frontend/public/exercise-demos/` are SVG figures
+derived from the user's `training-figures-a3.html` training reference. Only the
+exercises listed in `frontend/src/lib/exerciseDemos.ts` have one; the button is
+hidden for the rest rather than guessing at a match.
+
+Anatomy paths in `frontend/src/lib/bodyPaths.ts` come from
+[react-native-body-highlighter](https://github.com/HichamELBSI/react-native-body-highlighter)
+(MIT).

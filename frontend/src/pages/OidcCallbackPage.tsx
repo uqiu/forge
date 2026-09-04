@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { t } from '../lib/i18n'
 
 /** Lands here from the OIDC callback redirect with the JWT in the URL
  *  fragment; scrub it from the address bar immediately, then hydrate. */
@@ -23,7 +24,7 @@ export default function OidcCallbackPage() {
 
   return (
     <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-      Signing you in…
+      {t('Signing you in…')}
     </div>
   )
 }

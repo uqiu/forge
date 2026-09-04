@@ -1,7 +1,8 @@
-import { ChevronLeft, Pencil, Trash2, Trophy } from 'lucide-react'
+import { ChevronLeft, CirclePlay, Pencil, Trash2, Trophy } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
+import ExerciseDemoSheet from '../components/ExerciseDemoSheet'
 import ExerciseForm, { type ExerciseFields } from '../components/ExerciseForm'
 import Skeleton from '../components/Skeleton'
 import Sheet from '../components/Sheet'
@@ -22,35 +23,44 @@ import { useAuth } from '../contexts/AuthContext'
 import { api } from '../lib/api'
 import type { MuscleRegion } from '../lib/bodyPaths'
 import { formatRelativeDate, formatSetWeight, formatShortDate, formatVolume, parseUTC } from '../lib/format'
+import { hasDemo } from '../lib/exerciseDemos'
+import { t, tc, tm } from '../lib/i18n'
 import { musclesFor } from '../lib/muscles'
-import type { ExerciseStats } from '../lib/types'
+import { toast } from '../lib/toast'
+import type { ExerciseStats, LoadMode } from '../lib/types'
 
+// Held in the hands, so "one or two?" is a real question. A barbell is one bar
+// and a machine is one stack, whatever the handles look like.
+const FREE_WEIGHT = new Set(['Dumbbell', 'Kettlebell'])
+
+// Individual muscles, not the coarse groups the catalog names — hence their
+// own key namespace ("Chest" the muscle vs "Chest" the muscle group).
 const MUSCLE_LABEL: Record<MuscleRegion, string> = {
-  chest: 'Chest',
-  'front-delts': 'Front delts',
-  'rear-delts': 'Rear delts',
-  biceps: 'Biceps',
-  triceps: 'Triceps',
-  forearms: 'Forearms',
-  abs: 'Abs',
-  obliques: 'Obliques',
-  traps: 'Traps',
-  lats: 'Lats',
-  'lower-back': 'Lower back',
-  glutes: 'Glutes',
-  quads: 'Quads',
-  hamstrings: 'Hamstrings',
-  adductors: 'Adductors',
-  calves: 'Calves',
+  chest: 'muscle|Chest',
+  'front-delts': 'muscle|Front delts',
+  'rear-delts': 'muscle|Rear delts',
+  biceps: 'muscle|Biceps',
+  triceps: 'muscle|Triceps',
+  forearms: 'muscle|Forearms',
+  abs: 'muscle|Abs',
+  obliques: 'muscle|Obliques',
+  traps: 'muscle|Traps',
+  lats: 'muscle|Lats',
+  'lower-back': 'muscle|Lower back',
+  glutes: 'muscle|Glutes',
+  quads: 'muscle|Quads',
+  hamstrings: 'muscle|Hamstrings',
+  adductors: 'muscle|Adductors',
+  calves: 'muscle|Calves',
 }
 
 type Metric = 'best_1rm' | 'best_weight' | 'best_reps' | 'volume'
 
 const METRIC_LABEL: Record<Metric, string> = {
-  best_1rm: 'Est. 1RM',
-  best_weight: 'Best weight',
-  best_reps: 'Most reps',
-  volume: 'Volume',
+  best_1rm: 'metric|Est. 1RM',
+  best_weight: 'metric|Best weight',
+  best_reps: 'metric|Most reps',
+  volume: 'metric|Volume',
 }
 
 const RPE_COLOR = '#6d87ab'
@@ -74,6 +84,7 @@ export default function ExerciseDetailPage() {
   const [stats, setStats] = useState<ExerciseStats | null>(null)
   const [metric, setMetric] = useState<Metric>('best_1rm')
   const [editing, setEditing] = useState(false)
+  const [demoOpen, setDemoOpen] = useState(false)
   const [includeFamily, setIncludeFamily] = useState(false)
   const [range, setRange] = useState<'3m' | '1y' | 'all'>('all')
   const [error, setError] = useState('')
@@ -106,6 +117,12 @@ export default function ExerciseDetailPage() {
   }
 
   const { exercise, variations, records, chart, history } = stats
+  // A variant with no demo of its own borrows the family root's — the
+  // variations list carries the whole family, root included.
+  const baseName =
+    exercise.variant_of_id != null
+      ? (variations.find((v) => v.id === exercise.variant_of_id)?.name ?? null)
+      : null
 
   const saveExercise = async (fields: ExerciseFields) => {
     setError('')
@@ -117,7 +134,7 @@ export default function ExerciseDetailPage() {
       setStats({ ...stats, exercise: updated })
       setEditing(false)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to save')
+      setError(e instanceof Error ? tm(e.message) : t('Failed to save'))
     }
   }
 
@@ -155,18 +172,18 @@ export default function ExerciseDetailPage() {
   const worked = musclesFor(exercise.name, exercise.muscle_group)
   const muscleCard = worked.primary.length > 0 && (
     <section className="mt-4 rounded-xl border bg-card p-4">
-      <h2 className="mb-3 text-base">Muscles worked</h2>
+      <h2 className="mb-3 text-base">{t('Muscles worked')}</h2>
       <MuscleMap primary={worked.primary} secondary={worked.secondary} />
       <p className="mt-3 text-sm">
-        <span className="text-muted-foreground">Primary</span>{' '}
+        <span className="text-muted-foreground">{t('Primary')}</span>{' '}
         <span className="font-semibold">
-          {worked.primary.map((m) => MUSCLE_LABEL[m]).join(', ')}
+          {worked.primary.map((m) => t(MUSCLE_LABEL[m])).join(t('list|, '))}
         </span>
         {worked.secondary.length > 0 && (
           <>
             <br />
-            <span className="text-muted-foreground">Secondary</span>{' '}
-            {worked.secondary.map((m) => MUSCLE_LABEL[m]).join(', ')}
+            <span className="text-muted-foreground">{t('Secondary')}</span>{' '}
+            {worked.secondary.map((m) => t(MUSCLE_LABEL[m])).join(t('list|, '))}
           </>
         )}
       </p>
@@ -187,28 +204,45 @@ export default function ExerciseDetailPage() {
         <button
           onClick={() => navigate(-1)}
           className="touch-feedback -ml-2 rounded-full p-2 text-muted-foreground"
-          aria-label="Back"
+          aria-label={t('Back')}
         >
           <ChevronLeft size={24} />
         </button>
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-2xl">{exercise.name}</h1>
+          <h1 className="truncate text-2xl">{tc(exercise.name)}</h1>
           <p className="text-sm text-muted-foreground">
-            {exercise.muscle_group} · {exercise.equipment}
-            {exercise.grip && ` · ${exercise.grip} grip`}
-            {exercise.is_custom && ' · Custom'}
+            {tc(exercise.muscle_group)} · {tc(exercise.equipment)}
+            {exercise.grip && ` · ${t('{grip} grip', { grip: tc(exercise.grip) })}`}
+            {exercise.load_mode && ` · ${t(`load|${exercise.load_mode}`)}`}
+            {exercise.is_custom && ` · ${t('Custom')}`}
           </p>
         </div>
+        {hasDemo(exercise.name, baseName) && (
+          <button
+            onClick={() => setDemoOpen(true)}
+            className="touch-feedback rounded-full p-2 text-muted-foreground"
+            aria-label={t('How to do {name}', { name: tc(exercise.name) })}
+          >
+            <CirclePlay size={19} />
+          </button>
+        )}
         {exercise.is_custom && (
           <button
             onClick={() => setEditing(true)}
             className="touch-feedback rounded-full p-2 text-muted-foreground"
-            aria-label="Edit exercise"
+            aria-label={t('Edit exercise')}
           >
             <Pencil size={18} />
           </button>
         )}
       </header>
+
+      <ExerciseDemoSheet
+        name={exercise.name}
+        variantOfName={baseName}
+        open={demoOpen}
+        onClose={() => setDemoOpen(false)}
+      />
 
       <textarea
         key={`note-${exercise.id}`}
@@ -231,10 +265,39 @@ export default function ExerciseDetailPage() {
               .catch(() => {})
           }
         }}
-        placeholder="Pinned note — cues, seat height, grip width"
+        placeholder={t('Pinned note — cues, seat height, grip width')}
         rows={1}
         className="mt-1 mb-2 w-full resize-none overflow-hidden rounded-xl border border-input bg-card px-3.5 py-2.5 text-sm outline-none placeholder:text-muted-foreground/60 focus:ring-2 focus:ring-ring"
       />
+
+      {/* Free weights only — a barbell or a cable stack has no implement count
+          to argue about. Editable even on a seed exercise, because whether a
+          split squat holds one dumbbell or two is the lifter's call. */}
+      {FREE_WEIGHT.has(exercise.equipment) && (
+        <div className="mb-2 flex items-center justify-between gap-3 rounded-xl border bg-card px-3.5 py-2.5">
+          <span className="min-w-0 text-sm font-medium">
+            {t('Loaded with')}
+            <span className="block text-xs font-normal text-muted-foreground">
+              {t('The weight you log is always one implement’s')}
+            </span>
+          </span>
+          <Segmented<LoadMode>
+            options={[
+              { value: 'single', label: t('load|single') },
+              { value: 'pair', label: t('load|pair') },
+            ]}
+            value={exercise.load_mode ?? 'pair'}
+            onChange={(mode) => {
+              setStats({ ...stats, exercise: { ...exercise, load_mode: mode } })
+              api(`/exercises/${exercise.id}/load-mode`, {
+                method: 'PUT',
+                body: { load_mode: mode },
+              }).catch(() => toast(t('Could not save how this exercise is loaded')))
+            }}
+            className="w-40 shrink-0"
+          />
+        </div>
+      )}
 
       {variations.length > 0 && (
         <div className="scrollbar-none -mx-1 flex gap-1.5 overflow-x-auto px-1 pt-1 pb-2">
@@ -246,7 +309,7 @@ export default function ExerciseDetailPage() {
                 : 'touch-feedback shrink-0 rounded-full bg-accent-soft px-3 py-1.5 text-sm font-medium text-primary'
             }
           >
-            {includeFamily ? 'All variations' : '+ All variations'}
+            {includeFamily ? t('All variations') : `+ ${t('All variations')}`}
           </button>
           {variations.map((v) => (
             <button
@@ -262,7 +325,7 @@ export default function ExerciseDetailPage() {
                   : 'touch-feedback shrink-0 rounded-full bg-secondary px-3 py-1.5 text-sm font-medium text-secondary-foreground'
               }
             >
-              {v.name}
+              {tc(v.name)}
             </button>
           ))}
         </div>
@@ -272,8 +335,8 @@ export default function ExerciseDetailPage() {
         <>
           {muscleCard}
           <div className="mt-4">
-            <EmptyState title="No sets logged yet">
-              Records and progress will appear once you train this exercise.
+            <EmptyState title={t('No sets logged yet')}>
+              {t('Records and progress will appear once you train this exercise.')}
             </EmptyState>
           </div>
         </>
@@ -281,12 +344,12 @@ export default function ExerciseDetailPage() {
         <>
           <div className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-4">
             <StatTile
-              label="Best weight"
+              label={t('Best weight')}
               value={records.best_weight ? `${records.best_weight.weight} ${unit}` : '—'}
               sub={records.best_weight ? `× ${records.best_weight.reps}` : undefined}
             />
             <StatTile
-              label="Est. 1RM (Epley)"
+              label={t('Est. 1RM (Epley)')}
               value={records.best_1rm ? `${records.best_1rm.value} ${unit}` : '—'}
               sub={
                 records.best_1rm
@@ -295,7 +358,7 @@ export default function ExerciseDetailPage() {
               }
             />
             <StatTile
-              label="Best set volume"
+              label={t('Best set volume')}
               value={records.best_volume_set ? formatVolume(records.best_volume_set.value, unit) : '—'}
               sub={
                 records.best_volume_set
@@ -304,16 +367,19 @@ export default function ExerciseDetailPage() {
               }
             />
             {records.best_reps && (
-              <StatTile label="Most reps (BW)" value={`${records.best_reps.reps} reps`} />
+              <StatTile
+                label={t('Most reps (BW)')}
+                value={t('{n} reps', { n: records.best_reps.reps })}
+              />
             )}
-            <StatTile label="Workouts" value={String(records.times_performed)} />
+            <StatTile label={t('Workouts')} value={String(records.times_performed)} />
           </div>
 
           {muscleCard}
 
           <section className="mt-4 rounded-xl border bg-card p-4">
             <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="text-base">{METRIC_LABEL[metric]}</h2>
+              <h2 className="text-base">{t(METRIC_LABEL[metric])}</h2>
               <div className="flex gap-1">
                 {(['3m', '1y', 'all'] as const).map((r) => (
                   <button
@@ -325,7 +391,7 @@ export default function ExerciseDetailPage() {
                         : 'touch-feedback rounded-md px-2 py-1 text-xs font-semibold text-muted-foreground uppercase'
                     }
                   >
-                    {r}
+                    {t(`range|${r}`)}
                   </button>
                 ))}
               </div>
@@ -334,14 +400,14 @@ export default function ExerciseDetailPage() {
               options={
                 exercise.equipment === 'Bodyweight'
                   ? [
-                      { value: 'best_reps', label: 'Reps' },
-                      { value: 'best_weight', label: 'Weight' },
-                      { value: 'volume', label: 'Volume' },
+                      { value: 'best_reps', label: t('Reps') },
+                      { value: 'best_weight', label: t('Weight') },
+                      { value: 'volume', label: t('Volume') },
                     ]
                   : [
                       { value: 'best_1rm', label: '1RM' },
-                      { value: 'best_weight', label: 'Weight' },
-                      { value: 'volume', label: 'Volume' },
+                      { value: 'best_weight', label: t('Weight') },
+                      { value: 'volume', label: t('Volume') },
                     ]
               }
               value={metric}
@@ -370,14 +436,19 @@ export default function ExerciseDetailPage() {
                       cursor={{ stroke: 'var(--muted-foreground)', strokeDasharray: '3 3' }}
                       contentStyle={tooltipStyle}
                       formatter={(value) => [
-                        metric === 'best_reps' ? `${value} reps` : `${value} ${unit}`,
+                        metric === 'best_reps'
+                          ? t('{n} reps', { n: String(value) })
+                          : `${value} ${unit}`,
                       ]}
                     />
                     {stats.series.map((s, i) => (
                       <Line
                         key={s.exercise_id}
                         type="monotone"
+                        // dataKey stays the English name — that's the key the
+                        // merged rows are built under; `name` is what shows.
                         dataKey={s.name}
+                        name={tc(s.name)}
                         stroke={SERIES_COLORS[i]}
                         strokeWidth={2}
                         dot={{ r: 3, fill: SERIES_COLORS[i], strokeWidth: 0 }}
@@ -404,7 +475,7 @@ export default function ExerciseDetailPage() {
                     <Tooltip
                       cursor={{ fill: 'var(--accent-soft)' }}
                       contentStyle={tooltipStyle}
-                      formatter={(value) => [`${value} ${unit}`, 'Volume']}
+                      formatter={(value) => [`${value} ${unit}`, t('Volume')]}
                     />
                     <Bar
                       dataKey="volume"
@@ -444,11 +515,13 @@ export default function ExerciseDetailPage() {
                       cursor={{ stroke: 'var(--muted-foreground)', strokeDasharray: '3 3' }}
                       contentStyle={tooltipStyle}
                       formatter={(value, name) =>
-                        name === 'Avg RPE'
-                          ? [String(value), 'Avg RPE']
+                        name === t('Avg RPE')
+                          ? [String(value), t('Avg RPE')]
                           : [
-                              metric === 'best_reps' ? `${value} reps` : `${value} ${unit}`,
-                              METRIC_LABEL[metric],
+                              metric === 'best_reps'
+                                ? t('{n} reps', { n: String(value) })
+                                : `${value} ${unit}`,
+                              t(METRIC_LABEL[metric]),
                             ]
                       }
                     />
@@ -465,7 +538,7 @@ export default function ExerciseDetailPage() {
                         yAxisId="rpe"
                         type="monotone"
                         dataKey="avg_rpe"
-                        name="Avg RPE"
+                        name={t('Avg RPE')}
                         stroke={RPE_COLOR}
                         strokeWidth={2}
                         strokeDasharray="5 4"
@@ -486,7 +559,7 @@ export default function ExerciseDetailPage() {
                       style={{ backgroundColor: SERIES_COLORS[i] }}
                     />
                     <span className={s.exercise_id === exercise.id ? 'font-semibold' : 'text-muted-foreground'}>
-                      {s.name}
+                      {tc(s.name)}
                     </span>
                   </span>
                 ))}
@@ -494,17 +567,22 @@ export default function ExerciseDetailPage() {
             )}
             {rpeOverlay && (
               <p className="mt-2 text-[11px] text-muted-foreground">
-                <span style={{ color: RPE_COLOR }}>– –</span> average RPE per session — rising 1RM at
-                flat RPE is real strength; flat 1RM at rising RPE is strain
+                <span style={{ color: RPE_COLOR }}>– –</span>{' '}
+                {t(
+                  'average RPE per session — rising 1RM at flat RPE is real strength; flat 1RM at rising RPE is strain',
+                )}
               </p>
             )}
           </section>
 
           {records.best_1rm && (
             <section className="mt-4 rounded-xl border bg-card p-4">
-              <h2 className="text-base">Training percentages</h2>
+              <h2 className="text-base">{t('Training percentages')}</h2>
               <p className="mt-0.5 mb-3 text-xs text-muted-foreground">
-                of your {records.best_1rm.value} {unit} estimated 1RM, rounded to 2.5
+                {t('of your {value} {unit} estimated 1RM, rounded to 2.5', {
+                  value: records.best_1rm.value,
+                  unit,
+                })}
               </p>
               <div className="grid grid-cols-4 gap-2">
                 {[95, 90, 85, 80, 75, 70, 65, 60].map((pct) => (
@@ -520,7 +598,7 @@ export default function ExerciseDetailPage() {
           )}
 
           <section className="mt-4 pb-8">
-            <h2 className="mb-2 text-base">History</h2>
+            <h2 className="mb-2 text-base">{t('History')}</h2>
             <div className="grid gap-2 md:grid-cols-2">
               {history.map((h) => (
                 <Link
@@ -529,7 +607,7 @@ export default function ExerciseDetailPage() {
                   className="touch-feedback rounded-xl border bg-card p-3.5"
                 >
                   <div className="flex items-baseline justify-between">
-                    <span className="font-medium">{h.workout_name}</span>
+                    <span className="font-medium">{tc(h.workout_name)}</span>
                     <span className="text-sm text-muted-foreground">{formatRelativeDate(h.date)}</span>
                   </div>
                   <div className="mt-1.5 flex flex-col gap-0.5">
@@ -550,7 +628,7 @@ export default function ExerciseDetailPage() {
         </>
       )}
 
-      <Sheet open={editing} onClose={() => setEditing(false)} title="Edit exercise">
+      <Sheet open={editing} onClose={() => setEditing(false)} title={t('Edit exercise')}>
         <ExerciseForm
           key={`${exercise.id}-${editing}`}
           initial={{
@@ -559,19 +637,25 @@ export default function ExerciseDetailPage() {
             equipment: exercise.equipment,
             grip: exercise.grip ?? null,
           }}
-          submitLabel="Save"
+          submitLabel={t('Save')}
           onSubmit={saveExercise}
           error={error}
           secondaryAction={
             <button
               onClick={() => {
-                if (confirm(`Delete "${exercise.name}"? This also removes it from every workout and template.`)) {
+                if (
+                  confirm(
+                    t('Delete “{name}”? This also removes it from every workout and template.', {
+                      name: tc(exercise.name),
+                    }),
+                  )
+                ) {
                   deleteExercise()
                 }
               }}
               className="touch-feedback flex h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-secondary font-semibold text-destructive"
             >
-              <Trash2 size={16} /> Delete
+              <Trash2 size={16} /> {t('Delete')}
             </button>
           }
         />

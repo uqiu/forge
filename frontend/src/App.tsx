@@ -7,6 +7,7 @@ import { WorkoutProvider } from './contexts/WorkoutContext'
 import { api } from './lib/api'
 import { setCached } from './lib/dataCache'
 import { fetchExercises } from './lib/exerciseCache'
+import { t, useLocale } from './lib/i18n'
 import AppShell from './components/AppShell'
 import ActiveWorkoutPage from './pages/ActiveWorkoutPage'
 import ExerciseDetailPage from './pages/ExerciseDetailPage'
@@ -57,7 +58,7 @@ function Protected({ children }: { children: ReactNode }) {
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center text-muted-foreground">
-        Loading…
+        {t('Loading…')}
       </div>
     )
   }
@@ -69,6 +70,9 @@ function Protected({ children }: { children: ReactNode }) {
 }
 
 export default function App() {
+  // Subscribing at the root is what makes a language switch repaint the whole
+  // tree — every t() below re-runs when this re-renders.
+  useLocale()
   return (
     <BrowserRouter>
       <AuthProvider>

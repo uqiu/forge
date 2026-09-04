@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Skeleton from '../components/Skeleton'
 import { api } from '../lib/api'
+import { t, tc } from '../lib/i18n'
 
 interface ArtistRow {
   artist: string
@@ -53,7 +54,15 @@ interface MusicStats {
   sources: { live: number; inferred: number }
 }
 
-const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+const WEEKDAYS = [
+  'weekday|Monday',
+  'weekday|Tuesday',
+  'weekday|Wednesday',
+  'weekday|Thursday',
+  'weekday|Friday',
+  'weekday|Saturday',
+  'weekday|Sunday',
+]
 
 /** Train-time listening, aggregated from every workout soundtrack the
  *  companion captured. Everything grows with the data — one workout in,
@@ -74,11 +83,11 @@ export default function MusicStatsPage() {
         <button
           onClick={() => navigate(-1)}
           className="touch-feedback -ml-2 rounded-full p-2 text-muted-foreground"
-          aria-label="Back"
+          aria-label={t('Back')}
         >
           <ChevronLeft size={24} />
         </button>
-        <h1 className="text-2xl">Music</h1>
+        <h1 className="text-2xl">{t('Music')}</h1>
       </header>
 
       {stats == null ? (
@@ -89,8 +98,9 @@ export default function MusicStatsPage() {
         </div>
       ) : stats.workouts === 0 ? (
         <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-          No soundtrack data yet. Enable "Log music during workouts" in the iPhone app's settings —
-          every session you train with music will start filling this page.
+          {t(
+            'No soundtrack data yet. Enable “Log music during workouts” in the iPhone app’s settings — every session you train with music will start filling this page.',
+          )}
         </p>
       ) : (
         <div className="flex flex-col gap-3 pb-8">
@@ -98,24 +108,24 @@ export default function MusicStatsPage() {
             <div className="rounded-xl border bg-card p-3 text-center">
               <Music size={16} className="mx-auto mb-1 text-muted-foreground" />
               <div className="tnum font-semibold">{stats.songs}</div>
-              <div className="text-xs text-muted-foreground">songs played</div>
+              <div className="text-xs text-muted-foreground">{t('songs played')}</div>
             </div>
             <div className="rounded-xl border bg-card p-3 text-center">
               <MicVocal size={16} className="mx-auto mb-1 text-muted-foreground" />
               <div className="tnum font-semibold">{stats.artists}</div>
-              <div className="text-xs text-muted-foreground">artists</div>
+              <div className="text-xs text-muted-foreground">{t('artists')}</div>
             </div>
             <div className="rounded-xl border bg-card p-3 text-center">
               <Dumbbell size={16} className="mx-auto mb-1 text-muted-foreground" />
               <div className="tnum font-semibold">{stats.workouts}</div>
-              <div className="text-xs text-muted-foreground">workouts</div>
+              <div className="text-xs text-muted-foreground">{t('workouts')}</div>
             </div>
           </div>
 
           {stats.pr_songs.length > 0 && (
             <section className="rounded-xl border bg-card p-4">
               <h2 className="mb-3 flex items-center gap-2 text-base">
-                <Trophy size={16} className="text-record" /> PR songs
+                <Trophy size={16} className="text-record" /> {t('PR songs')}
               </h2>
               <div className="flex flex-col gap-2">
                 {stats.pr_songs.map((s, i) => (
@@ -127,7 +137,7 @@ export default function MusicStatsPage() {
                       )}
                     </span>
                     <span className="tnum shrink-0 text-xs font-semibold text-record">
-                      {s.prs} PR{s.prs === 1 ? '' : 's'}
+                      {s.prs === 1 ? t('{n} PR', { n: s.prs }) : t('{n} PRs', { n: s.prs })}
                     </span>
                   </div>
                 ))}
@@ -137,15 +147,18 @@ export default function MusicStatsPage() {
 
           {(stats.genres?.length ?? 0) > 0 && (
             <section className="rounded-xl border bg-card p-4">
-              <h2 className="mb-3 text-base">Genres while training</h2>
+              <h2 className="mb-3 text-base">{t('Genres while training')}</h2>
               <div className="flex flex-col gap-2.5">
                 {stats.genres!.slice(0, 8).map((g) => (
                   <div key={g.genre}>
                     <div className="flex items-baseline justify-between gap-2 text-sm">
-                      <span className="min-w-0 truncate font-medium">{g.genre}</span>
+                      <span className="min-w-0 truncate font-medium">{tc(g.genre)}</span>
                       <span className="tnum shrink-0 text-xs text-muted-foreground">
-                        {g.plays} play{g.plays === 1 ? '' : 's'} · {g.workouts} workout
-                        {g.workouts === 1 ? '' : 's'}
+                        {g.plays === 1 ? t('{n} play', { n: g.plays }) : t('{n} plays', { n: g.plays })}{' '}
+                        ·{' '}
+                        {g.workouts === 1
+                          ? t('{n} workout', { n: g.workouts })
+                          : t('{n} workouts', { n: g.workouts })}
                       </span>
                     </div>
                     <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-secondary">
@@ -164,22 +177,24 @@ export default function MusicStatsPage() {
 
           {(stats.genre_results?.length ?? 0) > 1 && (
             <section className="rounded-xl border bg-card p-4">
-              <h2 className="text-base">Which genre lifts hardest</h2>
+              <h2 className="text-base">{t('Which genre lifts hardest')}</h2>
               <p className="mt-0.5 mb-3 text-xs text-muted-foreground">
-                sets and PRs that landed while each genre was playing — correlation, not causation,
-                but fun to argue about
+                {t(
+                  'sets and PRs that landed while each genre was playing — correlation, not causation, but fun to argue about',
+                )}
               </p>
               <div className="flex flex-col gap-2">
                 {stats.genre_results!.map((g) => (
                   <div key={g.genre} className="flex items-baseline justify-between gap-3 text-sm">
                     <span className="min-w-0">
-                      <span className="block truncate font-medium">{g.genre}</span>
+                      <span className="block truncate font-medium">{tc(g.genre)}</span>
                       <span className="tnum block text-xs text-muted-foreground">
-                        {g.sets} sets{g.avg_rpe != null && ` · avg RPE ${g.avg_rpe}`}
+                        {t('{n} sets', { n: g.sets })}
+                        {g.avg_rpe != null && ` · ${t('avg RPE {rpe}', { rpe: g.avg_rpe })}`}
                       </span>
                     </span>
                     <span className="tnum shrink-0 text-xs font-semibold text-record">
-                      {g.pr_per_100} PRs / 100 sets
+                      {t('{n} PRs / 100 sets', { n: g.pr_per_100 })}
                     </span>
                   </div>
                 ))}
@@ -189,13 +204,13 @@ export default function MusicStatsPage() {
 
           {(stats.weekday_genres?.length ?? 0) > 1 && (
             <section className="rounded-xl border bg-card p-4">
-              <h2 className="mb-3 text-base">Weekday soundtrack</h2>
+              <h2 className="mb-3 text-base">{t('Weekday soundtrack')}</h2>
               <div className="flex flex-col gap-1.5">
                 {stats.weekday_genres!.map((d) => (
                   <div key={d.weekday} className="flex items-baseline justify-between gap-3 text-sm">
-                    <span className="text-muted-foreground">{WEEKDAYS[d.weekday]}</span>
+                    <span className="text-muted-foreground">{t(WEEKDAYS[d.weekday])}</span>
                     <span className="tnum min-w-0 truncate font-medium">
-                      {d.genre}
+                      {tc(d.genre)}
                       <span className="ml-1.5 text-xs font-normal text-muted-foreground">
                         {Math.round((d.plays / d.total) * 100)}%
                       </span>
@@ -207,14 +222,14 @@ export default function MusicStatsPage() {
           )}
 
           <section className="rounded-xl border bg-card p-4">
-            <h2 className="mb-3 text-base">Top artists while training</h2>
+            <h2 className="mb-3 text-base">{t('Top artists while training')}</h2>
             <div className="flex flex-col gap-2.5">
               {stats.top_artists.map((a) => (
                 <div key={a.artist}>
                   <div className="flex items-baseline justify-between gap-2 text-sm">
                     <span className="min-w-0 truncate font-medium">{a.artist}</span>
                     <span className="tnum shrink-0 text-xs text-muted-foreground">
-                      {a.plays} play{a.plays === 1 ? '' : 's'}
+                      {a.plays === 1 ? t('{n} play', { n: a.plays }) : t('{n} plays', { n: a.plays })}
                     </span>
                   </div>
                   <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-secondary">
@@ -229,7 +244,7 @@ export default function MusicStatsPage() {
           </section>
 
           <section className="rounded-xl border bg-card p-4">
-            <h2 className="mb-3 text-base">Most played songs</h2>
+            <h2 className="mb-3 text-base">{t('Most played songs')}</h2>
             <div className="flex flex-col gap-2">
               {stats.top_songs.map((s, i) => (
                 <div key={i} className="flex items-baseline gap-3 text-sm">
@@ -252,8 +267,10 @@ export default function MusicStatsPage() {
 
           {stats.sources.inferred > 0 && (
             <p className="px-1 text-xs text-muted-foreground">
-              {stats.sources.inferred} of {stats.songs} songs were gap-filled from Apple Music's
-              recently played (≈ in workout soundtracks) — the rest were heard live by the app.
+              {t(
+                '{inferred} of {total} songs were gap-filled from Apple Music’s recently played (≈ in workout soundtracks) — the rest were heard live by the app.',
+                { inferred: stats.sources.inferred, total: stats.songs },
+              )}
             </p>
           )}
         </div>

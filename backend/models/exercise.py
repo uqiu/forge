@@ -20,6 +20,12 @@ class Exercise(Base):
     grip_width: Mapped[str | None] = mapped_column(String(16), nullable=True)
     # Cable attachment: Rope / Straight Bar / V-Bar / Single Handle / ...
     attachment: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    # How many implements the movement is loaded with: 'single' (one dumbbell
+    # or kettlebell, as in a goblet squat) or 'pair' (one in each hand, as in a
+    # lateral raise). NULL where the question doesn't apply — a barbell, a
+    # machine, a cable stack, bodyweight. Display only: the logged weight is
+    # always one implement's, so volume and PRs don't read this.
+    load_mode: Mapped[str | None] = mapped_column(String(8), nullable=True)
     # Groups grip/style variations under a base exercise (NULL = base itself)
     variant_of_id: Mapped[int | None] = mapped_column(
         ForeignKey("exercises.id"), nullable=True

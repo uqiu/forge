@@ -16,6 +16,12 @@ import { useAuth } from '../contexts/AuthContext'
 import { api } from '../lib/api'
 import { useCachedState } from '../lib/dataCache'
 import { formatRelativeDate, formatShortDate, toDatetimeLocal } from '../lib/format'
+import { t } from '../lib/i18n'
+
+/** Measurement kinds share spellings with muscle groups ("Chest") but mean a
+ *  circumference, not a muscle — so they get their own key namespace rather
+ *  than going through the catalog dictionary. */
+const kindLabel = (kind: string) => t(`measure|${kind}`)
 
 interface KindSummary {
   kind: string
@@ -58,11 +64,11 @@ export function MeasureListPage() {
         <button
           onClick={() => navigate(-1)}
           className="touch-feedback -ml-2 rounded-full p-2 text-muted-foreground"
-          aria-label="Back"
+          aria-label={t('Back')}
         >
           <ChevronLeft size={24} />
         </button>
-        <h1 className="text-2xl">Measurements</h1>
+        <h1 className="text-2xl">{t('Measurements')}</h1>
       </header>
 
       {kinds == null ? (
@@ -79,7 +85,7 @@ export function MeasureListPage() {
                 onClick={() => navigate(`/measure/${encodeURIComponent(k.kind)}`, { viewTransition: true })}
                 className="touch-feedback flex w-full items-center justify-between px-4 py-3.5 text-left"
               >
-                <span className="font-medium">{k.kind}</span>
+                <span className="font-medium">{kindLabel(k.kind)}</span>
                 <span className="flex items-center gap-2 text-sm text-muted-foreground">
                   {k.latest ? (
                     <>
@@ -164,16 +170,16 @@ export function MeasureDetailPage() {
         <button
           onClick={() => navigate(-1)}
           className="touch-feedback -ml-2 rounded-full p-2 text-muted-foreground"
-          aria-label="Back"
+          aria-label={t('Back')}
         >
           <ChevronLeft size={24} />
         </button>
-        <h1 className="flex-1 text-2xl">{kind}</h1>
+        <h1 className="flex-1 text-2xl">{kindLabel(kind)}</h1>
         <button
           onClick={() => setAdding(true)}
           className="touch-feedback flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground"
         >
-          <Plus size={16} /> Add
+          <Plus size={16} /> {t('Add')}
         </button>
       </header>
 
@@ -181,7 +187,7 @@ export function MeasureDetailPage() {
         <section className="mb-4 grid grid-cols-3 gap-2">
           <div className="rounded-xl border bg-card px-3 py-2.5">
             <div className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-              Trend
+              {t('Trend')}
             </div>
             <div className="tnum mt-0.5 text-lg font-semibold">
               {trend.trend} <span className="text-xs font-normal text-muted-foreground">{unit}</span>
@@ -192,7 +198,7 @@ export function MeasureDetailPage() {
           </div>
           <div className="rounded-xl border bg-card px-3 py-2.5">
             <div className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-              Per week
+              {t('Per week')}
             </div>
             <div className="tnum mt-0.5 text-lg font-semibold">
               {rate == null ? '—' : `${rate > 0 ? '+' : ''}${rate}`}
@@ -203,7 +209,7 @@ export function MeasureDetailPage() {
           </div>
           <div className="rounded-xl border bg-card px-3 py-2.5">
             <div className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-              28 days
+              {t('28 days')}
             </div>
             <div className="tnum mt-0.5 text-lg font-semibold">
               {trend.change_28d == null
@@ -226,14 +232,14 @@ export function MeasureDetailPage() {
                   className="h-2 w-2 rounded-full"
                   style={{ backgroundColor: 'var(--muted-foreground)' }}
                 />
-                Logged
+                {t('Logged')}
               </span>
               <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <span
                   className="h-2 w-2 rounded-full"
                   style={{ backgroundColor: 'var(--chart-accent)' }}
                 />
-                Trend
+                {t('Trend')}
               </span>
             </div>
           )}
@@ -270,7 +276,7 @@ export function MeasureDetailPage() {
                 <Line
                   type="monotone"
                   dataKey="actual"
-                  name="Logged"
+                  name={t('Logged')}
                   stroke="var(--muted-foreground)"
                   strokeWidth={1.5}
                   strokeOpacity={0.45}
@@ -281,7 +287,7 @@ export function MeasureDetailPage() {
                   <Line
                     type="monotone"
                     dataKey="trend"
-                    name="Trend"
+                    name={t('Trend')}
                     stroke="var(--chart-accent)"
                     strokeWidth={2}
                     dot={false}
@@ -302,7 +308,9 @@ export function MeasureDetailPage() {
         </div>
       ) : entries.length === 0 ? (
         <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-          No entries yet — add your first {kind.toLowerCase()} measurement.
+          {t('No entries yet — add your first {kind} measurement.', {
+            kind: kindLabel(kind).toLowerCase(),
+          })}
         </p>
       ) : (
         <ul className="divide-y divide-border overflow-hidden rounded-xl border bg-card">
@@ -316,7 +324,7 @@ export function MeasureDetailPage() {
                 <button
                   onClick={() => remove(e.id)}
                   className="touch-feedback ml-1 rounded-full p-1.5"
-                  aria-label="Delete entry"
+                  aria-label={t('Delete entry')}
                 >
                   <Trash2 size={15} />
                 </button>
@@ -326,10 +334,14 @@ export function MeasureDetailPage() {
         </ul>
       )}
 
-      <Sheet open={adding} onClose={() => setAdding(false)} title={`Add ${kind.toLowerCase()}`}>
+      <Sheet
+        open={adding}
+        onClose={() => setAdding(false)}
+        title={t('Add {kind}', { kind: kindLabel(kind).toLowerCase() })}
+      >
         <div className="flex flex-col gap-3 pt-1">
           <label className="flex flex-col gap-1.5 text-sm font-medium">
-            Value ({unit})
+            {t('Value ({unit})', { unit })}
             <input
               autoFocus
               value={value}
@@ -340,7 +352,7 @@ export function MeasureDetailPage() {
             />
           </label>
           <label className="flex flex-col gap-1.5 text-sm font-medium">
-            When
+            {t('When')}
             <input
               type="datetime-local"
               value={when}
@@ -353,7 +365,7 @@ export function MeasureDetailPage() {
             disabled={!value.trim()}
             className="touch-feedback h-12 rounded-xl bg-primary font-semibold text-primary-foreground disabled:opacity-50"
           >
-            Save
+            {t('Save')}
           </button>
         </div>
       </Sheet>

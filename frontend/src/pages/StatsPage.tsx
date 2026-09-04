@@ -20,7 +20,13 @@ import { useAuth } from '../contexts/AuthContext'
 import { api } from '../lib/api'
 import { useCachedState } from '../lib/dataCache'
 import { formatDuration, formatShortDate, formatVolume } from '../lib/format'
+import { intlLocale, t, tc } from '../lib/i18n'
 import { cn } from '../lib/utils'
+
+/** Labels the stats API builds from Python's date formatting and its own
+ *  vocabularies — translated here by key rather than parsed. */
+const monthLabel = (month: string) => t(`month|${month}`)
+const weekdayLabel = (day: string) => t(`weekday|${day}`)
 
 interface StatsExtras {
   avg_per_week: number
@@ -125,9 +131,12 @@ interface HeadroomPoint {
 }
 
 const LOAD_STATUS: Record<string, { label: string; hint: string }> = {
-  fresh: { label: 'Fresh', hint: 'fatigue is low — a good stretch to push' },
-  productive: { label: 'Productive', hint: 'building fitness at a sustainable clip' },
-  overreaching: { label: 'Overreaching', hint: 'fatigue is outrunning fitness — plan an easier day' },
+  fresh: { label: 'load|Fresh', hint: 'fatigue is low — a good stretch to push' },
+  productive: { label: 'load|Productive', hint: 'building fitness at a sustainable clip' },
+  overreaching: {
+    label: 'load|Overreaching',
+    hint: 'fatigue is outrunning fitness — plan an easier day',
+  },
 }
 
 interface YearReview {
@@ -240,12 +249,12 @@ function CalendarHeatmap({ days }: { days: StatsData['calendar'] }) {
 
   // A month label goes above the first week of each month in view
   const monthLabels = weeks.map((week, i) => {
-    const month = new Date(`${week[0].date}T00:00:00`).toLocaleDateString(undefined, {
+    const month = new Date(`${week[0].date}T00:00:00`).toLocaleDateString(intlLocale(), {
       month: 'short',
     })
     const prev = i > 0 ? weeks[i - 1] : null
     const prevMonth = prev
-      ? new Date(`${prev[0].date}T00:00:00`).toLocaleDateString(undefined, { month: 'short' })
+      ? new Date(`${prev[0].date}T00:00:00`).toLocaleDateString(intlLocale(), { month: 'short' })
       : null
     return month !== prevMonth ? month : ''
   })
@@ -271,7 +280,7 @@ function CalendarHeatmap({ days }: { days: StatsData['calendar'] }) {
           >
             {['Mon', '', 'Wed', '', 'Fri', '', ''].map((d, i) => (
               <span key={i} className="flex items-center justify-end" style={{ height: CELL }}>
-                {d}
+                {d && t(`weekday3|${d}`)}
               </span>
             ))}
           </div>
@@ -280,7 +289,7 @@ function CalendarHeatmap({ days }: { days: StatsData['calendar'] }) {
               {week.map((d) => (
                 <div
                   key={d.date}
-                  title={`${d.date}: ${d.workouts} workout${d.workouts === 1 ? '' : 's'}`}
+                  title={`${d.date}: ${d.workouts === 1 ? t('{n} workout', { n: d.workouts }) : t('{n} workouts', { n: d.workouts })}`}
                   className="rounded-[3px]"
                   style={{ width: CELL, height: CELL, backgroundColor: heatColor(d.workouts) }}
                 />
@@ -290,7 +299,7 @@ function CalendarHeatmap({ days }: { days: StatsData['calendar'] }) {
         </div>
       </div>
       <div className="mt-2 flex items-center justify-end gap-1.5 text-[10px] text-muted-foreground">
-        Less
+        {t('Less')}
         {[0, 1, 2].map((n) => (
           <span
             key={n}
@@ -298,7 +307,7 @@ function CalendarHeatmap({ days }: { days: StatsData['calendar'] }) {
             style={{ backgroundColor: heatColor(n) }}
           />
         ))}
-        More
+        {t('More')}
       </div>
     </div>
   )
@@ -322,7 +331,7 @@ export default function StatsPage() {
     return (
       <div className="safe-top px-4 pb-8">
         <header className="pt-6 pb-4">
-          <h1 className="text-3xl">Stats</h1>
+          <h1 className="text-3xl">{t('Stats')}</h1>
         </header>
         <div className="flex flex-col gap-4">
           <Skeleton className="h-20 rounded-xl" />
@@ -355,17 +364,17 @@ export default function StatsPage() {
     press + pull > 0
       ? {
           rows: [
-            { label: 'Press', sets: press },
-            { label: 'Pull', sets: pull },
-            { label: 'Legs', sets: legsSets },
+            { label: t('Press'), sets: press },
+            { label: t('Pull'), sets: pull },
+            { label: t('balance|Legs'), sets: legsSets },
           ],
           max: Math.max(1, press, pull, legsSets),
           ratio: pull > 0 ? (press / pull).toFixed(1) : '∞',
           note:
             pull === 0 || press / pull > 1.5
-              ? 'pressing-heavy — your shoulders would thank you for more rows and pulldowns'
+              ? t('pressing-heavy — your shoulders would thank you for more rows and pulldowns')
               : pull > 0 && press / pull < 0.67
-                ? 'pull-heavy — room for more pressing if that is not deliberate'
+                ? t('pull-heavy — room for more pressing if that is not deliberate')
                 : null,
         }
       : null
@@ -373,11 +382,11 @@ export default function StatsPage() {
   return (
     <div className="safe-top px-4 pb-8">
       <header className="flex items-center justify-between pt-6 pb-4">
-        <h1 className="text-3xl">Stats</h1>
+        <h1 className="text-3xl">{t('Stats')}</h1>
         <Segmented<'overview' | 'trends'>
           options={[
-            { value: 'overview', label: 'Overview' },
-            { value: 'trends', label: 'Trends' },
+            { value: 'overview', label: t('Overview') },
+            { value: 'trends', label: t('Trends') },
           ]}
           value={tab}
           onChange={setTab}
@@ -385,8 +394,8 @@ export default function StatsPage() {
       </header>
 
       {stats.totals.workouts === 0 ? (
-        <EmptyState title="No training data yet">
-          Finish your first workout and your stats will grow here.
+        <EmptyState title={t('No training data yet')}>
+          {t('Finish your first workout and your stats will grow here.')}
         </EmptyState>
       ) : (
         <div className="flex flex-col gap-4">
@@ -403,15 +412,20 @@ export default function StatsPage() {
             </div>
             <div className="flex-1">
               <div className="tnum text-lg font-semibold">
-                {stats.streak_weeks} week{stats.streak_weeks === 1 ? '' : 's'} streak
+                {stats.streak_weeks === 1
+                  ? t('{n} week streak', { n: stats.streak_weeks })
+                  : t('{n} weeks streak', { n: stats.streak_weeks })}
               </div>
               <div className="text-sm text-muted-foreground">
                 {(() => {
                   const thisWeek = stats.weeks[stats.weeks.length - 1]?.workouts ?? 0
                   const goal = user?.weekly_goal ?? 3
-                  return thisWeek >= goal
-                    ? `weekly goal hit — ${thisWeek} workout${thisWeek === 1 ? '' : 's'} this week`
-                    : `${thisWeek} of ${goal} workouts this week`
+                  if (thisWeek < goal) {
+                    return t('{done} of {goal} workouts this week', { done: thisWeek, goal })
+                  }
+                  return thisWeek === 1
+                    ? t('weekly goal hit — {n} workout this week', { n: thisWeek })
+                    : t('weekly goal hit — {n} workouts this week', { n: thisWeek })
                 })()}
               </div>
               <div className="mt-1.5 flex gap-1">
@@ -438,7 +452,10 @@ export default function StatsPage() {
             >
               <Moon size={17} className="shrink-0 text-muted-foreground" />
               <span>
-                No <span className="font-semibold">{n.group}</span> work in {n.days} days
+                {t('No {group} work in {days} days', {
+                  group: tc(n.group),
+                  days: n.days,
+                })}
               </span>
             </div>
           ))}
@@ -447,7 +464,7 @@ export default function StatsPage() {
             <section className="rounded-xl border bg-card px-4 py-2">
               <div className="flex items-center gap-2 pt-2 pb-1">
                 <TrendingDown size={15} className="text-muted-foreground" />
-                <h2 className="text-sm font-semibold">Stalled lifts</h2>
+                <h2 className="text-sm font-semibold">{t('Stalled lifts')}</h2>
               </div>
               {stats.stalls.map((s) => (
                 <button
@@ -456,27 +473,27 @@ export default function StatsPage() {
                   className="touch-feedback flex w-full items-center justify-between gap-3 py-2 text-left text-sm"
                 >
                   <span className="min-w-0 truncate">
-                    <span className="font-semibold">{s.name}</span>{' '}
+                    <span className="font-semibold">{tc(s.name)}</span>{' '}
                     <span className="text-muted-foreground">
-                      stuck at {s.weight} {unit}
+                      {t('stuck at {weight} {unit}', { weight: s.weight, unit })}
                     </span>
                   </span>
                   <span className="tnum shrink-0 text-xs text-muted-foreground">
-                    {s.sessions} sessions
+                    {t('{n} sessions', { n: s.sessions })}
                   </span>
                 </button>
               ))}
               <p className="pb-2 pt-1 text-[11px] text-muted-foreground">
-                same top weight, rep target missed — a deload or variation may help
+                {t('same top weight, rep target missed — a deload or variation may help')}
               </p>
             </section>
           )}
 
           <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-            <StatTile label="Workouts" value={String(stats.totals.workouts)} />
-            <StatTile label="Total volume" value={formatVolume(stats.totals.volume, unit)} />
-            <StatTile label="Working sets" value={String(stats.totals.sets)} />
-            <StatTile label="PRs" value={String(stats.totals.prs)} />
+            <StatTile label={t('Workouts')} value={String(stats.totals.workouts)} />
+            <StatTile label={t('Total volume')} value={formatVolume(stats.totals.volume, unit)} />
+            <StatTile label={t('Working sets')} value={String(stats.totals.sets)} />
+            <StatTile label={t('PRs')} value={String(stats.totals.prs)} />
           </div>
 
           {stats.extras && (
@@ -484,55 +501,61 @@ export default function StatsPage() {
               <div className="grid md:grid-cols-2 md:gap-x-6">
                 <HighlightRow
                   icon={Repeat}
-                  label="Frequency"
-                  value={`${stats.extras.avg_per_week}× / week`}
+                  label={t('Frequency')}
+                  value={t('{n}× / week', { n: stats.extras.avg_per_week })}
                 />
                 <HighlightRow
                   icon={Timer}
-                  label="Average session"
+                  label={t('Average session')}
                   value={formatDuration(stats.extras.avg_duration_seconds)}
                   hint={`· ${formatVolume(stats.extras.avg_volume, unit)}`}
                 />
                 <HighlightRow
                   icon={Hourglass}
-                  label="Time under iron"
+                  label={t('Time under iron')}
                   value={formatDuration(stats.extras.total_time_seconds)}
                 />
                 <HighlightRow
                   icon={Flame}
-                  label="Longest streak"
-                  value={`${stats.extras.longest_streak_weeks} week${stats.extras.longest_streak_weeks === 1 ? '' : 's'}`}
+                  label={t('Longest streak')}
+                  value={
+                    stats.extras.longest_streak_weeks === 1
+                      ? t('{n} week', { n: stats.extras.longest_streak_weeks })
+                      : t('{n} weeks', { n: stats.extras.longest_streak_weeks })
+                  }
                 />
                 {stats.extras.top_exercise && (
                   <HighlightRow
                     icon={Dumbbell}
-                    label="Most trained"
-                    value={stats.extras.top_exercise.name}
-                    hint={`· ${stats.extras.top_exercise.sessions} sessions`}
+                    label={t('Most trained')}
+                    value={tc(stats.extras.top_exercise.name)}
+                    hint={`· ${t('{n} sessions', { n: stats.extras.top_exercise.sessions })}`}
                   />
                 )}
                 {stats.extras.busiest_weekday && (
                   <HighlightRow
                     icon={CalendarDays}
-                    label="Favourite day"
-                    value={stats.extras.busiest_weekday}
+                    label={t('Favourite day')}
+                    value={weekdayLabel(stats.extras.busiest_weekday)}
                   />
                 )}
                 <HighlightRow
                   icon={TrendingUp}
-                  label="This month"
+                  label={t('This month')}
                   value={formatVolume(stats.extras.month_volume, unit)}
                   hint={
                     stats.extras.prev_month_volume > 0
-                      ? `· ${stats.extras.month_volume >= stats.extras.prev_month_volume ? '+' : ''}${Math.round(((stats.extras.month_volume - stats.extras.prev_month_volume) / stats.extras.prev_month_volume) * 100)}% vs last`
+                      ? `· ${t('{delta}% vs last', {
+                          delta: `${stats.extras.month_volume >= stats.extras.prev_month_volume ? '+' : ''}${Math.round(((stats.extras.month_volume - stats.extras.prev_month_volume) / stats.extras.prev_month_volume) * 100)}`,
+                        })}`
                       : undefined
                   }
                 />
                 {stats.totals.since && (
                   <HighlightRow
                     icon={Weight}
-                    label="Training since"
-                    value={new Date(stats.totals.since).toLocaleDateString(undefined, {
+                    label={t('Training since')}
+                    value={new Date(stats.totals.since).toLocaleDateString(intlLocale(), {
                       month: 'long',
                       year: 'numeric',
                     })}
@@ -551,8 +574,8 @@ export default function StatsPage() {
                 <Trophy size={18} />
               </div>
               <div className="min-w-0">
-                <div className="truncate text-sm font-semibold">Records</div>
-                <div className="truncate text-xs text-muted-foreground">all-time bests</div>
+                <div className="truncate text-sm font-semibold">{t('Records')}</div>
+                <div className="truncate text-xs text-muted-foreground">{t('all-time bests')}</div>
               </div>
             </button>
             <button
@@ -563,8 +586,8 @@ export default function StatsPage() {
                 <Ruler size={18} />
               </div>
               <div className="min-w-0">
-                <div className="truncate text-sm font-semibold">Measurements</div>
-                <div className="truncate text-xs text-muted-foreground">body tracking</div>
+                <div className="truncate text-sm font-semibold">{t('Measurements')}</div>
+                <div className="truncate text-xs text-muted-foreground">{t('body tracking')}</div>
               </div>
             </button>
             <button
@@ -575,54 +598,60 @@ export default function StatsPage() {
                 <Music size={18} />
               </div>
               <div className="min-w-0">
-                <div className="truncate text-sm font-semibold">Music</div>
+                <div className="truncate text-sm font-semibold">{t('Music')}</div>
                 <div className="truncate text-xs text-muted-foreground">
-                  what plays while you lift · PR songs
+                  {t('what plays while you lift · PR songs')}
                 </div>
               </div>
             </button>
           </div>
 
           <section className="rounded-xl border bg-card p-4">
-            <h2 className="mb-3 text-base">Training calendar</h2>
+            <h2 className="mb-3 text-base">{t('Training calendar')}</h2>
             <CalendarHeatmap days={stats.calendar} />
           </section>
 
           {stats.year && (
             <section className="rounded-xl border bg-card p-4">
-              <h2 className="mb-3 text-base">{stats.year.year} so far</h2>
+              <h2 className="mb-3 text-base">
+                {t('{year} so far', { year: stats.year.year })}
+              </h2>
               <div className="mb-1 grid grid-cols-2 gap-2 md:grid-cols-4">
-                <StatTile label="Workouts" value={String(stats.year.workouts)} />
-                <StatTile label="Volume" value={formatVolume(stats.year.volume, unit)} />
-                <StatTile label="Working sets" value={String(stats.year.sets)} />
-                <StatTile label="PRs" value={String(stats.year.prs)} />
+                <StatTile label={t('Workouts')} value={String(stats.year.workouts)} />
+                <StatTile label={t('Volume')} value={formatVolume(stats.year.volume, unit)} />
+                <StatTile label={t('Working sets')} value={String(stats.year.sets)} />
+                <StatTile label={t('PRs')} value={String(stats.year.prs)} />
               </div>
               <div className="grid md:grid-cols-2 md:gap-x-6">
                 {stats.year.biggest_pr && (
                   <HighlightRow
                     icon={Trophy}
-                    label="Biggest PR"
+                    label={t('Biggest PR')}
                     value={`${stats.year.biggest_pr.weight} ${unit} × ${stats.year.biggest_pr.reps}`}
-                    hint={`· ${stats.year.biggest_pr.name}`}
+                    hint={`· ${tc(stats.year.biggest_pr.name)}`}
                   />
                 )}
                 {stats.year.top_exercise && (
                   <HighlightRow
                     icon={Dumbbell}
-                    label="Most trained"
-                    value={stats.year.top_exercise.name}
-                    hint={`· ${stats.year.top_exercise.sessions} sessions`}
+                    label={t('Most trained')}
+                    value={tc(stats.year.top_exercise.name)}
+                    hint={`· ${t('{n} sessions', { n: stats.year.top_exercise.sessions })}`}
                   />
                 )}
                 <HighlightRow
                   icon={Flame}
-                  label="Longest streak"
-                  value={`${stats.year.longest_streak_weeks} week${stats.year.longest_streak_weeks === 1 ? '' : 's'}`}
+                  label={t('Longest streak')}
+                  value={
+                    stats.year.longest_streak_weeks === 1
+                      ? t('{n} week', { n: stats.year.longest_streak_weeks })
+                      : t('{n} weeks', { n: stats.year.longest_streak_weeks })
+                  }
                 />
                 <HighlightRow
                   icon={CalendarDays}
-                  label="Biggest month"
-                  value={stats.year.busiest_month.name}
+                  label={t('Biggest month')}
+                  value={monthLabel(stats.year.busiest_month.name)}
                   hint={`· ${formatVolume(stats.year.busiest_month.volume, unit)}`}
                 />
               </div>
@@ -640,7 +669,9 @@ export default function StatsPage() {
                               m.volume > 0 ? 'var(--chart-accent)' : 'var(--secondary)',
                           }}
                         />
-                        <span className="text-[9px] text-muted-foreground">{m.month}</span>
+                        <span className="text-[9px] text-muted-foreground">
+                          {monthLabel(m.month)}
+                        </span>
                       </div>
                     )
                   })}
@@ -655,16 +686,16 @@ export default function StatsPage() {
           {tab === 'trends' && (
             <>
           <section className="rounded-xl border bg-card p-4">
-            <h2 className={cn('text-base', hasRpe ? 'mb-1' : 'mb-3')}>Weekly volume</h2>
+            <h2 className={cn('text-base', hasRpe ? 'mb-1' : 'mb-3')}>{t('Weekly volume')}</h2>
             {hasRpe && (
               <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1">
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <span className="h-2 w-2 rounded-full" style={{ backgroundColor: 'var(--chart-accent)' }} />
-                  Volume
+                  {t('Volume')}
                 </span>
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <span className="h-2 w-2 rounded-full" style={{ backgroundColor: RPE_COLOR }} />
-                  Avg RPE
+                  {t('Avg RPE')}
                 </span>
               </div>
             )}
@@ -707,9 +738,11 @@ export default function StatsPage() {
                       fontSize: '13px',
                     }}
                     formatter={(value, name) =>
-                      name === 'Avg RPE' ? [String(value), 'Avg RPE'] : [`${value} ${unit}`, 'Volume']
+                      name === t('Avg RPE')
+                        ? [String(value), t('Avg RPE')]
+                        : [`${value} ${unit}`, t('Volume')]
                     }
-                    labelFormatter={(label) => `Week of ${label}`}
+                    labelFormatter={(label) => t('Week of {date}', { date: String(label) })}
                   />
                   <Bar dataKey="volume" fill="var(--chart-accent)" radius={[4, 4, 0, 0]} maxBarSize={22} />
                   {hasRpe && (
@@ -717,7 +750,7 @@ export default function StatsPage() {
                       yAxisId="rpe"
                       type="monotone"
                       dataKey="avg_rpe"
-                      name="Avg RPE"
+                      name={t('Avg RPE')}
                       stroke={RPE_COLOR}
                       strokeWidth={2}
                       strokeDasharray="5 4"
@@ -732,30 +765,34 @@ export default function StatsPage() {
 
           {stats.trends.blocks && (
             <section className="rounded-xl border bg-card p-4">
-              <h2 className="mb-1 text-base">This block vs last</h2>
+              <h2 className="mb-1 text-base">{t('This block vs last')}</h2>
               <p className="mb-3 text-xs text-muted-foreground">
-                {stats.trends.blocks.days}-day training blocks, sets per muscle group
+                {t('{days}-day training blocks, sets per muscle group', {
+                  days: stats.trends.blocks.days,
+                })}
               </p>
               <div className="mb-3 grid grid-cols-2 gap-2">
                 <StatTile
-                  label="Volume"
+                  label={t('Volume')}
                   value={formatVolume(stats.trends.blocks.current.volume, unit)}
                   hint={
                     stats.trends.blocks.previous.volume > 0
-                      ? `${stats.trends.blocks.current.volume >= stats.trends.blocks.previous.volume ? '+' : ''}${Math.round(((stats.trends.blocks.current.volume - stats.trends.blocks.previous.volume) / stats.trends.blocks.previous.volume) * 100)}% vs last block`
+                      ? t('{delta}% vs last block', {
+                          delta: `${stats.trends.blocks.current.volume >= stats.trends.blocks.previous.volume ? '+' : ''}${Math.round(((stats.trends.blocks.current.volume - stats.trends.blocks.previous.volume) / stats.trends.blocks.previous.volume) * 100)}`,
+                        })
                       : undefined
                   }
                 />
                 <StatTile
-                  label="Workouts"
+                  label={t('Workouts')}
                   value={String(stats.trends.blocks.current.workouts)}
-                  hint={`vs ${stats.trends.blocks.previous.workouts} last block`}
+                  hint={t('vs {n} last block', { n: stats.trends.blocks.previous.workouts })}
                 />
               </div>
               <div className="flex flex-col gap-2">
                 {stats.trends.blocks.groups.map((g) => (
                   <div key={g.group} className="flex items-center gap-3 text-sm">
-                    <span className="w-20 shrink-0 font-medium">{g.group}</span>
+                    <span className="w-20 shrink-0 font-medium">{tc(g.group)}</span>
                     <span className="tnum flex-1 text-right text-muted-foreground">
                       {g.previous} → {g.current}
                     </span>
@@ -780,7 +817,7 @@ export default function StatsPage() {
                 <div className="mt-3 flex flex-col gap-2 border-t pt-3">
                   {stats.trends.blocks.lifts.map((l) => (
                     <div key={l.name} className="flex items-center gap-3 text-sm">
-                      <span className="min-w-0 flex-1 truncate font-medium">{l.name}</span>
+                      <span className="min-w-0 flex-1 truncate font-medium">{tc(l.name)}</span>
                       <span className="tnum text-muted-foreground">
                         {l.previous} → {l.current} {unit}
                       </span>
@@ -794,7 +831,9 @@ export default function StatsPage() {
                       </span>
                     </div>
                   ))}
-                  <p className="text-[10px] text-muted-foreground">best estimated 1RM per block</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {t('best estimated 1RM per block')}
+                  </p>
                 </div>
               )}
             </section>
@@ -803,7 +842,7 @@ export default function StatsPage() {
           {stats.trends.load && (
             <section className="rounded-xl border bg-card p-4">
               <div className="mb-1 flex items-center justify-between gap-2">
-                <h2 className="text-base">Form &amp; fatigue</h2>
+                <h2 className="text-base">{t('Form & fatigue')}</h2>
                 <span
                   className={cn(
                     'rounded-full px-2.5 py-1 text-xs font-semibold',
@@ -812,21 +851,21 @@ export default function StatsPage() {
                       : 'bg-accent-soft text-primary',
                   )}
                 >
-                  {LOAD_STATUS[stats.trends.load.status].label}
+                  {t(LOAD_STATUS[stats.trends.load.status].label)}
                 </span>
               </div>
               <p className="mb-3 text-xs text-muted-foreground">
-                {LOAD_STATUS[stats.trends.load.status].hint} — 42-day fitness vs 7-day fatigue,
-                from daily training load
+                {t(LOAD_STATUS[stats.trends.load.status].hint)}{' '}
+                {t('— 42-day fitness vs 7-day fatigue, from daily training load')}
               </p>
               <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1">
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <span className="h-2 w-2 rounded-full" style={{ backgroundColor: 'var(--chart-accent)' }} />
-                  Fitness
+                  {t('Fitness')}
                 </span>
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <span className="h-2 w-2 rounded-full" style={{ backgroundColor: RPE_COLOR }} />
-                  Fatigue
+                  {t('Fatigue')}
                 </span>
               </div>
               <div className="h-44 md:h-56">
@@ -862,13 +901,13 @@ export default function StatsPage() {
                         color: 'var(--popover-foreground)',
                         fontSize: '13px',
                       }}
-                      formatter={(value, name) => [`${value} ${unit}/day`, name]}
+                      formatter={(value, name) => [`${value} ${unit}${t('/day')}`, name]}
                       labelFormatter={(label) => formatShortDate(String(label) + 'T00:00:00')}
                     />
                     <Line
                       type="monotone"
                       dataKey="fitness"
-                      name="Fitness"
+                      name={t('Fitness')}
                       stroke="var(--chart-accent)"
                       strokeWidth={2}
                       dot={false}
@@ -876,7 +915,7 @@ export default function StatsPage() {
                     <Line
                       type="monotone"
                       dataKey="fatigue"
-                      name="Fatigue"
+                      name={t('Fatigue')}
                       stroke={RPE_COLOR}
                       strokeWidth={2}
                       strokeDasharray="5 4"
@@ -890,7 +929,7 @@ export default function StatsPage() {
 
           {stats.trends.top_lifts.names.length > 0 && (
             <section className="rounded-xl border bg-card p-4">
-              <h2 className="mb-1 text-base">Top lifts — estimated 1RM</h2>
+              <h2 className="mb-1 text-base">{t('Top lifts — estimated 1RM')}</h2>
               <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1">
                 {stats.trends.top_lifts.names.map((name, i) => (
                   <span key={name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -898,7 +937,7 @@ export default function StatsPage() {
                       className="h-2 w-2 rounded-full"
                       style={{ backgroundColor: SERIES_COLORS[i] }}
                     />
-                    {name}
+                    {tc(name)}
                   </span>
                 ))}
               </div>
@@ -933,13 +972,17 @@ export default function StatsPage() {
                         fontSize: '13px',
                       }}
                       formatter={(value, name) => [`${value} ${unit}`, name]}
-                      labelFormatter={(label) => `Week of ${formatShortDate(String(label))}`}
+                      labelFormatter={(label) =>
+                        t('Week of {date}', { date: formatShortDate(String(label)) })
+                      }
                     />
                     {stats.trends.top_lifts.names.map((name, i) => (
                       <Line
                         key={name}
                         type="monotone"
+                        // dataKey is the English name the week rows are keyed by
                         dataKey={name}
+                        name={tc(name)}
                         stroke={SERIES_COLORS[i]}
                         strokeWidth={2}
                         dot={{ r: 3, fill: SERIES_COLORS[i], strokeWidth: 0 }}
@@ -954,16 +997,17 @@ export default function StatsPage() {
 
           {(stats.trends.headroom ?? []).length > 0 && (
             <section className="rounded-xl border bg-card p-4">
-              <h2 className="mb-1 text-base">TM headroom</h2>
+              <h2 className="mb-1 text-base">{t('TM headroom')}</h2>
               <p className="mb-3 text-xs text-muted-foreground">
-                AMRAP e1RM vs training max — around +10% is a healthy TM, near 0% a bump
-                is outpacing you, negative means deload it
+                {t(
+                  'AMRAP e1RM vs training max — around +10% is a healthy TM, near 0% a bump is outpacing you, negative means deload it',
+                )}
               </p>
               <div className="flex flex-col gap-4">
                 {stats.trends.headroom!.map((h) => (
                   <div key={`${h.program}-${h.lift}`}>
                     <div className="flex items-baseline justify-between gap-2">
-                      <span className="min-w-0 truncate text-sm font-medium">{h.lift}</span>
+                      <span className="min-w-0 truncate text-sm font-medium">{tc(h.lift)}</span>
                       <span
                         className={`tnum text-sm font-semibold ${
                           h.latest.headroom >= 5
@@ -978,15 +1022,16 @@ export default function StatsPage() {
                       </span>
                     </div>
                     <div className="tnum text-xs text-muted-foreground">
-                      C{h.latest.cycle} W{h.latest.week} · {h.latest.weight}×{h.latest.reps} →
-                      e1RM {h.latest.e1rm} vs TM {h.latest.tm} {unit}
+                      {t('C{cycle} W{week}', { cycle: h.latest.cycle, week: h.latest.week })} ·{' '}
+                      {h.latest.weight}×{h.latest.reps} → e1RM {h.latest.e1rm} vs {t('TM')}{' '}
+                      {h.latest.tm} {unit}
                     </div>
                     {h.points.length > 1 && (
                       <div className="mt-2 flex h-9 items-end gap-1">
                         {h.points.map((pt, i) => (
                           <div
                             key={i}
-                            title={`C${pt.cycle} W${pt.week}: ${pt.weight}×${pt.reps} (${pt.headroom > 0 ? '+' : ''}${pt.headroom}%)`}
+                            title={`${t('C{cycle} W{week}', { cycle: pt.cycle, week: pt.week })}: ${pt.weight}×${pt.reps} (${pt.headroom > 0 ? '+' : ''}${pt.headroom}%)`}
                             className="flex-1 rounded-sm"
                             style={{
                               height: `${Math.max(10, Math.min(100, ((pt.headroom + 5) / 20) * 100))}%`,
@@ -1006,15 +1051,16 @@ export default function StatsPage() {
 
           {(stats.trends.cycles ?? []).length > 0 && (
             <section className="rounded-xl border bg-card p-4">
-              <h2 className="mb-1 text-base">Cycle over cycle</h2>
+              <h2 className="mb-1 text-base">{t('Cycle over cycle')}</h2>
               <p className="mb-3 text-xs text-muted-foreground">
-                the same program week, one cycle apart — reps held at a higher weight is
-                the cleanest progress there is
+                {t(
+                  'the same program week, one cycle apart — reps held at a higher weight is the cleanest progress there is',
+                )}
               </p>
               <div className="flex flex-col gap-4">
                 {stats.trends.cycles!.map((c) => (
                   <div key={c.lift}>
-                    <div className="mb-1 text-sm font-medium">{c.lift}</div>
+                    <div className="mb-1 text-sm font-medium">{tc(c.lift)}</div>
                     <div className="flex flex-col gap-1">
                       {c.weeks.map((wk) => {
                         const first = wk.cycles[0]
@@ -1025,7 +1071,9 @@ export default function StatsPage() {
                             : null
                         return (
                           <div key={wk.week} className="flex items-center gap-2 text-xs">
-                            <span className="w-7 shrink-0 text-muted-foreground">W{wk.week}</span>
+                            <span className="w-7 shrink-0 text-muted-foreground">
+                              {t('W{week}', { week: wk.week })}
+                            </span>
                             <span className="tnum min-w-0 flex-1 truncate">
                               {wk.cycles.map((cc) => `${cc.weight}×${cc.reps}`).join(' → ')}
                             </span>
@@ -1055,23 +1103,24 @@ export default function StatsPage() {
 
           {(stats.trends.cycle_report ?? []).length > 0 && (
             <section className="rounded-xl border bg-card p-4">
-              <h2 className="mb-1 text-base">Cycle report</h2>
+              <h2 className="mb-1 text-base">{t('Cycle report')}</h2>
               <p className="mb-3 text-xs text-muted-foreground">
-                the last completed cycle, closed out — a TM bump is earned when the
-                cycle's best AMRAP already covers the new max
+                {t(
+                  'the last completed cycle, closed out — a TM bump is earned when the cycle’s best AMRAP already covers the new max',
+                )}
               </p>
               <div className="flex flex-col gap-4">
                 {stats.trends.cycle_report!.map((r) => (
                   <div key={`${r.program}-${r.cycle}`}>
                     <div className="mb-2 text-xs text-muted-foreground">
-                      {r.program} · Cycle {r.cycle} · {formatShortDate(r.from)} –{' '}
-                      {formatShortDate(r.to)}
+                      {tc(r.program)} · {t('Cycle {n}', { n: r.cycle })} ·{' '}
+                      {formatShortDate(r.from)} – {formatShortDate(r.to)}
                     </div>
                     <div className="flex flex-col gap-3">
                       {r.lifts.map((l) => (
                         <div key={l.lift}>
                           <div className="flex items-baseline justify-between gap-2">
-                            <span className="min-w-0 truncate text-sm font-medium">{l.lift}</span>
+                            <span className="min-w-0 truncate text-sm font-medium">{tc(l.lift)}</span>
                             <span
                               className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
                                 l.earned
@@ -1079,14 +1128,18 @@ export default function StatsPage() {
                                   : 'bg-destructive/15 text-destructive'
                               }`}
                             >
-                              TM {l.tm} → {l.tm_next} · {l.earned ? 'earned' : 'not shown'}{' '}
+                              {t('TM')} {l.tm} → {l.tm_next} ·{' '}
+                              {l.earned ? t('earned') : t('not shown')}{' '}
                               {l.margin > 0 ? '+' : ''}
                               {l.margin}%
                             </span>
                           </div>
                           <div className="tnum mt-1 text-xs text-muted-foreground">
                             {l.weeks
-                              .map((wk) => `W${wk.week} ${wk.weight}×${wk.reps} (${wk.e1rm})`)
+                              .map(
+                                (wk) =>
+                                  `${t('W{week}', { week: wk.week })} ${wk.weight}×${wk.reps} (${wk.e1rm})`,
+                              )
                               .join(' · ')}
                           </div>
                         </div>
@@ -1095,12 +1148,12 @@ export default function StatsPage() {
                     {r.accessories.length > 0 && (
                       <div className="mt-2 border-t pt-2">
                         <div className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-                          Accessories moved
+                          {t('Accessories moved')}
                         </div>
                         <div className="tnum mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
                           {r.accessories.map((a) => (
                             <span key={a.name}>
-                              {a.name} {a.from} → {a.to} {unit}
+                              {tc(a.name)} {a.from} → {a.to} {unit}
                             </span>
                           ))}
                         </div>
@@ -1114,22 +1167,25 @@ export default function StatsPage() {
 
           {(stats.trends.velocity ?? []).length > 0 && (
             <section className="rounded-xl border bg-card p-4">
-              <h2 className="mb-1 text-base">Progression velocity</h2>
+              <h2 className="mb-1 text-base">{t('Progression velocity')}</h2>
               <p className="mb-3 text-xs text-muted-foreground">
-                sessions needed per weight increase on rep-range work — fast movers are
-                working, slow movers may need attention
+                {t(
+                  'sessions needed per weight increase on rep-range work — fast movers are working, slow movers may need attention',
+                )}
               </p>
               <div className="flex flex-col gap-2">
                 {stats.trends.velocity!.map((v) => (
                   <div key={v.name} className="flex items-center gap-2 text-sm">
-                    <span className="min-w-0 flex-1 truncate">{v.name}</span>
+                    <span className="min-w-0 flex-1 truncate">{tc(v.name)}</span>
                     <span className="tnum shrink-0 text-xs text-muted-foreground">
-                      {v.current_weight} {unit} · {v.sessions_at_current}{' '}
-                      {v.sessions_at_current === 1 ? 'session' : 'sessions'} ·{' '}
-                      {v.last_min_reps}/{v.rep_max} reps
+                      {v.current_weight} {unit} ·{' '}
+                      {v.sessions_at_current === 1
+                        ? t('{n} session', { n: v.sessions_at_current })
+                        : t('{n} sessions', { n: v.sessions_at_current })}{' '}
+                      · {t('{min}/{max} reps', { min: v.last_min_reps, max: v.rep_max })}
                     </span>
                     <span className="tnum shrink-0 font-semibold">
-                      +1 per {v.sessions_per_increase}
+                      {t('+1 per {n}', { n: v.sessions_per_increase })}
                     </span>
                   </div>
                 ))}
@@ -1139,9 +1195,9 @@ export default function StatsPage() {
 
           {stats.trends.relative && stats.trends.relative.names.length > 0 && (
             <section className="rounded-xl border bg-card p-4">
-              <h2 className="mb-1 text-base">Relative strength</h2>
+              <h2 className="mb-1 text-base">{t('Relative strength')}</h2>
               <p className="mb-3 text-xs text-muted-foreground">
-                estimated 1RM ÷ bodyweight — honest progress while cutting or bulking
+                {t('estimated 1RM ÷ bodyweight — honest progress while cutting or bulking')}
               </p>
               <div className="h-48 md:h-56">
                 <ResponsiveContainer width="100%" height="100%">
@@ -1174,14 +1230,20 @@ export default function StatsPage() {
                         color: 'var(--popover-foreground)',
                         fontSize: '13px',
                       }}
-                      formatter={(value, name) => [`${value}× bodyweight`, name]}
-                      labelFormatter={(label) => `Week of ${formatShortDate(String(label))}`}
+                      formatter={(value, name) => [
+                        t('{n}× bodyweight', { n: String(value) }),
+                        name,
+                      ]}
+                      labelFormatter={(label) =>
+                        t('Week of {date}', { date: formatShortDate(String(label)) })
+                      }
                     />
                     {stats.trends.relative.names.map((name, i) => (
                       <Line
                         key={name}
                         type="monotone"
                         dataKey={name}
+                        name={tc(name)}
                         stroke={SERIES_COLORS[i]}
                         strokeWidth={2}
                         dot={{ r: 3, fill: SERIES_COLORS[i], strokeWidth: 0 }}
@@ -1196,20 +1258,23 @@ export default function StatsPage() {
 
           {stats.trends.standards && stats.trends.standards.length > 0 && (
             <section className="rounded-xl border bg-card p-4">
-              <h2 className="mb-1 text-base">Strength standards</h2>
+              <h2 className="mb-1 text-base">{t('Strength standards')}</h2>
               <p className="mb-3 text-xs text-muted-foreground">
-                best e1RM ÷ bodyweight vs population standards — barbell lifts only,
-                and standards are approximate
+                {t(
+                  'best e1RM ÷ bodyweight vs population standards — barbell lifts only, and standards are approximate',
+                )}
               </p>
               <div className="flex flex-col gap-3">
                 {stats.trends.standards.map((s) => (
                   <div key={s.lift}>
                     <div className="mb-1 flex items-baseline justify-between gap-2">
-                      <span className="text-sm font-medium">{s.lift}</span>
+                      <span className="text-sm font-medium">{tc(s.lift)}</span>
                       <span className="text-xs text-muted-foreground">
-                        <span className="font-semibold text-foreground">{s.level}</span>
+                        <span className="font-semibold text-foreground">
+                          {t(`level|${s.level}`)}
+                        </span>
                         {' · '}
-                        {s.ratio}×BW
+                        {t('{n}×BW', { n: s.ratio })}
                       </span>
                     </div>
                     <div className="flex gap-1">
@@ -1229,41 +1294,42 @@ export default function StatsPage() {
                 ))}
               </div>
               <p className="mt-3 flex justify-between text-[10px] text-muted-foreground">
-                <span>Untrained</span>
-                <span>Novice</span>
-                <span>Intermediate</span>
-                <span>Advanced</span>
-                <span>Elite</span>
+                <span>{t('level|Untrained')}</span>
+                <span>{t('level|Novice')}</span>
+                <span>{t('level|Intermediate')}</span>
+                <span>{t('level|Advanced')}</span>
+                <span>{t('level|Elite')}</span>
               </p>
             </section>
           )}
 
           {(stats.trends.forecast ?? []).length > 0 && (
             <section className="rounded-xl border bg-card p-4">
-              <h2 className="mb-1 text-base">Trajectory</h2>
+              <h2 className="mb-1 text-base">{t('Trajectory')}</h2>
               <p className="mb-3 text-xs text-muted-foreground">
-                straight-line fit through 12 weeks of estimated 1RM — a compass, not a promise
+                {t('straight-line fit through 12 weeks of estimated 1RM — a compass, not a promise')}
               </p>
               <div className="flex flex-col gap-2.5">
                 {stats.trends.forecast.map((f) => (
                   <div key={f.name} className="flex items-center gap-3 text-sm">
-                    <span className="min-w-0 flex-1 truncate font-medium">{f.name}</span>
+                    <span className="min-w-0 flex-1 truncate font-medium">{tc(f.name)}</span>
                     {f.milestone && f.eta ? (
                       <span className="tnum shrink-0 text-muted-foreground">
                         {f.slope > 0 && (
                           <span className="mr-2 text-xs text-success">
-                            +{f.slope} {unit}/wk
+                            +{f.slope} {unit}
+                            {t('/wk')}
                           </span>
                         )}
                         {f.milestone} {unit} ≈{' '}
-                        {new Date(f.eta).toLocaleDateString(undefined, {
+                        {new Date(f.eta).toLocaleDateString(intlLocale(), {
                           month: 'short',
                           day: 'numeric',
                         })}
                       </span>
                     ) : (
                       <span className="shrink-0 text-xs text-muted-foreground">
-                        holding steady at {f.current} {unit}
+                        {t('holding steady at {weight} {unit}', { weight: f.current, unit })}
                       </span>
                     )}
                   </div>
@@ -1274,9 +1340,9 @@ export default function StatsPage() {
 
           {stats.trends.recovery && (
             <section className="rounded-xl border bg-card p-4">
-              <h2 className="mb-1 text-base">Recovery sweet spot</h2>
+              <h2 className="mb-1 text-base">{t('Recovery sweet spot')}</h2>
               <p className="mb-3 text-xs text-muted-foreground">
-                session strength vs your recent baseline, by rest days before it
+                {t('session strength vs your recent baseline, by rest days before it')}
               </p>
               <div className="flex flex-col gap-2.5">
                 {(() => {
@@ -1284,7 +1350,11 @@ export default function StatsPage() {
                   return stats.trends.recovery!.map((r) => (
                     <div key={r.bucket} className="flex items-center gap-3">
                       <span className="w-16 shrink-0 text-sm font-medium">
-                        {r.bucket === '4+' ? '4+ days' : `${r.bucket} day${r.bucket === '1' ? '' : 's'}`}
+                        {r.bucket === '4+'
+                          ? t('4+ days')
+                          : r.bucket === '1'
+                            ? t('{n} day', { n: r.bucket })
+                            : t('{n} days', { n: r.bucket })}
                       </span>
                       <div className="h-4 flex-1 overflow-hidden rounded-full bg-secondary">
                         <div
@@ -1322,11 +1392,16 @@ export default function StatsPage() {
               </div>
               <div>
                 <div className="text-sm font-semibold">
-                  Layoffs cost you ~{Math.abs(stats.trends.detraining.pct_per_week)}% strength per week away
+                  {t('Layoffs cost you ~{pct}% strength per week away', {
+                    pct: Math.abs(stats.trends.detraining.pct_per_week),
+                  })}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  measured across {stats.trends.detraining.events} training breaks of 2+ weeks
-                  {stats.trends.detraining.pct_per_week < 0 && ' — you actually came back stronger'}
+                  {t('measured across {n} training breaks of 2+ weeks', {
+                    n: stats.trends.detraining.events,
+                  })}
+                  {stats.trends.detraining.pct_per_week < 0 &&
+                    ` — ${t('you actually came back stronger')}`}
                 </div>
               </div>
             </section>
@@ -1334,24 +1409,24 @@ export default function StatsPage() {
 
           {stats.trends.pacing && (
             <section className="rounded-xl border bg-card p-4">
-              <h2 className="mb-1 text-base">Pacing</h2>
+              <h2 className="mb-1 text-base">{t('Pacing')}</h2>
               <p className="mb-3 text-xs text-muted-foreground">
-                measured rest between sets and how densely you train
+                {t('measured rest between sets and how densely you train')}
               </p>
               <div className="mb-3 grid grid-cols-2 gap-2">
                 <StatTile
-                  label="Avg rest"
+                  label={t('Avg rest')}
                   value={
                     stats.trends.pacing.avg_rest_seconds != null
-                      ? `${formatRest(stats.trends.pacing.avg_rest_seconds)} min`
+                      ? `${formatRest(stats.trends.pacing.avg_rest_seconds)} ${t('unit|min')}`
                       : '—'
                   }
                 />
                 <StatTile
-                  label="Density"
+                  label={t('Density')}
                   value={
                     stats.trends.pacing.avg_density != null
-                      ? `${stats.trends.pacing.avg_density} ${unit}/min`
+                      ? `${stats.trends.pacing.avg_density} ${unit}${t('/min')}`
                       : '—'
                   }
                 />
@@ -1388,8 +1463,13 @@ export default function StatsPage() {
                           color: 'var(--popover-foreground)',
                           fontSize: '13px',
                         }}
-                        formatter={(value) => [`${formatRest(Number(value))} min`, 'Avg rest']}
-                        labelFormatter={(label) => `Week of ${formatShortDate(String(label))}`}
+                        formatter={(value) => [
+                          `${formatRest(Number(value))} ${t('unit|min')}`,
+                          t('Avg rest'),
+                        ]}
+                        labelFormatter={(label) =>
+                          t('Week of {date}', { date: formatShortDate(String(label)) })
+                        }
                       />
                       <Line
                         type="monotone"
@@ -1408,7 +1488,7 @@ export default function StatsPage() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <section className="rounded-xl border bg-card p-4">
-              <h2 className="mb-3 text-base">Training days</h2>
+              <h2 className="mb-3 text-base">{t('Training days')}</h2>
               <div className="h-36">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={stats.trends.weekdays} margin={{ top: 6, right: 0, bottom: 0, left: -30 }}>
@@ -1418,6 +1498,7 @@ export default function StatsPage() {
                       tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
                       tickLine={false}
                       axisLine={{ stroke: 'var(--border)' }}
+                      tickFormatter={weekdayLabel}
                     />
                     <YAxis
                       tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
@@ -1434,7 +1515,8 @@ export default function StatsPage() {
                         color: 'var(--popover-foreground)',
                         fontSize: '13px',
                       }}
-                      formatter={(value) => [String(value), 'Workouts']}
+                      formatter={(value) => [String(value), t('Workouts')]}
+                      labelFormatter={(label) => weekdayLabel(String(label))}
                     />
                     <Bar dataKey="workouts" fill="var(--chart-accent)" radius={[4, 4, 0, 0]} maxBarSize={22} />
                   </BarChart>
@@ -1443,9 +1525,9 @@ export default function StatsPage() {
             </section>
 
             <section className="rounded-xl border bg-card p-4">
-              <h2 className="mb-1 text-base">Rep ranges</h2>
+              <h2 className="mb-1 text-base">{t('Rep ranges')}</h2>
               <p className="mb-3 text-xs text-muted-foreground">
-                working sets, last {stats.split_days} days
+                {t('working sets, last {days} days', { days: stats.split_days })}
               </p>
               <div className="flex flex-col gap-2.5">
                 {(() => {
@@ -1469,38 +1551,44 @@ export default function StatsPage() {
                   ))
                 })()}
               </div>
-              <p className="mt-3 text-xs text-muted-foreground">reps per working set</p>
+              <p className="mt-3 text-xs text-muted-foreground">{t('reps per working set')}</p>
             </section>
           </div>
 
           {stats.trends.times && stats.trends.times.length >= 2 && (
             <section className="rounded-xl border bg-card p-4">
-              <h2 className="mb-1 text-base">Time of day</h2>
+              <h2 className="mb-1 text-base">{t('Time of day')}</h2>
               <p className="mb-3 text-xs text-muted-foreground">
-                strength index: your session 1RMs vs that lift's average — 100 is your normal
+                {t(
+                  'strength index: your session 1RMs vs that lift’s average — 100 is your normal',
+                )}
               </p>
               <div className="flex flex-col gap-2.5">
-                {stats.trends.times.map((t) => (
-                  <div key={t.bucket} className="flex items-center gap-3">
-                    <span className="w-20 shrink-0 text-sm font-medium">{t.bucket}</span>
+                {stats.trends.times.map((slot) => (
+                  <div key={slot.bucket} className="flex items-center gap-3">
+                    <span className="w-20 shrink-0 text-sm font-medium">
+                      {t(`bucket|${slot.bucket}`)}
+                    </span>
                     <div className="h-4 flex-1 overflow-hidden rounded-full bg-secondary">
-                      {t.index != null && (
+                      {slot.index != null && (
                         <div
                           className="h-full rounded-full"
                           style={{
-                            width: `${Math.min(100, Math.max(4, ((t.index - 85) / 30) * 100))}%`,
+                            width: `${Math.min(100, Math.max(4, ((slot.index - 85) / 30) * 100))}%`,
                             backgroundColor:
-                              t.index >= 100 ? 'var(--chart-accent)' : 'var(--secondary-foreground)',
-                            opacity: t.index >= 100 ? 1 : 0.35,
+                              slot.index >= 100
+                                ? 'var(--chart-accent)'
+                                : 'var(--secondary-foreground)',
+                            opacity: slot.index >= 100 ? 1 : 0.35,
                           }}
                         />
                       )}
                     </div>
                     <span className="tnum w-8 shrink-0 text-right text-sm font-semibold">
-                      {t.index ?? '—'}
+                      {slot.index ?? '—'}
                     </span>
                     <span className="tnum w-16 shrink-0 text-right text-xs text-muted-foreground">
-                      {t.workouts}×
+                      {slot.workouts}×
                     </span>
                   </div>
                 ))}
@@ -1509,7 +1597,7 @@ export default function StatsPage() {
           )}
 
           <section className="rounded-xl border bg-card p-4">
-            <h2 className="mb-3 text-base">PRs per month</h2>
+            <h2 className="mb-3 text-base">{t('PRs per month')}</h2>
             <div className="h-36">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={stats.trends.prs_by_month} margin={{ top: 6, right: 0, bottom: 0, left: -30 }}>
@@ -1519,6 +1607,7 @@ export default function StatsPage() {
                     tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
                     tickLine={false}
                     axisLine={{ stroke: 'var(--border)' }}
+                    tickFormatter={monthLabel}
                   />
                   <YAxis
                     tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
@@ -1535,7 +1624,8 @@ export default function StatsPage() {
                       color: 'var(--popover-foreground)',
                       fontSize: '13px',
                     }}
-                    formatter={(value) => [String(value), 'PRs']}
+                    formatter={(value) => [String(value), t('PRs')]}
+                    labelFormatter={(label) => monthLabel(String(label))}
                   />
                   <Bar dataKey="prs" fill="#d4a843" radius={[4, 4, 0, 0]} maxBarSize={22} />
                 </BarChart>
@@ -1544,9 +1634,9 @@ export default function StatsPage() {
           </section>
 
           <section className="rounded-xl border bg-card p-4">
-            <h2 className="mb-1 text-base">Muscle split</h2>
+            <h2 className="mb-1 text-base">{t('Muscle split')}</h2>
             <p className="mb-3 text-xs text-muted-foreground">
-              working sets, last {stats.split_days} days
+              {t('working sets, last {days} days', { days: stats.split_days })}
             </p>
             <div className="flex flex-col gap-2.5">
               {stats.muscle_groups.map((g) => (
@@ -1555,7 +1645,9 @@ export default function StatsPage() {
                     onClick={() => setExpandedGroup(expandedGroup === g.group ? null : g.group)}
                     className="touch-feedback flex w-full items-center gap-3"
                   >
-                    <span className="w-20 shrink-0 text-left text-sm font-medium">{g.group}</span>
+                    <span className="w-20 shrink-0 text-left text-sm font-medium">
+                      {tc(g.group)}
+                    </span>
                     <div className="h-4 flex-1 overflow-hidden rounded-full bg-secondary">
                       <div
                         className="h-full rounded-full"
@@ -1588,22 +1680,28 @@ export default function StatsPage() {
                           )
                         })}
                       </div>
-                      <p className="mt-1 text-[10px] text-muted-foreground">sets per week, last 8 weeks</p>
+                      <p className="mt-1 text-[10px] text-muted-foreground">
+                        {t('sets per week, last 8 weeks')}
+                      </p>
                     </div>
                   )}
                 </div>
               ))}
               {stats.muscle_groups.length === 0 && (
-                <p className="text-sm text-muted-foreground">No working sets in this window yet.</p>
+                <p className="text-sm text-muted-foreground">
+                  {t('No working sets in this window yet.')}
+                </p>
               )}
             </div>
           </section>
 
           {balance && (
             <section className="rounded-xl border bg-card p-4">
-              <h2 className="mb-1 text-base">Push / pull balance</h2>
+              <h2 className="mb-1 text-base">{t('Push / pull balance')}</h2>
               <p className="mb-3 text-xs text-muted-foreground">
-                Chest + Shoulders vs Back — working sets, last {stats.split_days} days
+                {t('Chest + Shoulders vs Back — working sets, last {days} days', {
+                  days: stats.split_days,
+                })}
               </p>
               <div className="flex flex-col gap-2.5">
                 {balance.rows.map((r) => (
@@ -1626,7 +1724,9 @@ export default function StatsPage() {
               </div>
               <p className="mt-3 text-xs text-muted-foreground">
                 {balance.note ??
-                  `press : pull = ${balance.ratio} : 1 — a reasonable balance`}
+                  t('press : pull = {ratio} : 1 — a reasonable balance', {
+                    ratio: balance.ratio,
+                  })}
               </p>
             </section>
           )}

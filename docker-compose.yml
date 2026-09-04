@@ -1,5 +1,4 @@
-# Run Forge from the published container image. Works on any host
-# (Linux / macOS / Windows) for amd64 and arm64.
+# Run Forge from the published arm64 container image (for the Armbian server).
 #
 #   docker compose pull && docker compose up -d
 #
@@ -8,7 +7,7 @@
 # see docs/https.md.
 services:
   forge:
-    image: ghcr.io/bndct-devops/forge:latest
+    image: ghcr.io/uqiu/forge:latest
     container_name: forge
     ports:
       - "8081:8081"

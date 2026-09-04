@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../lib/api'
+import { t, tm } from '../lib/i18n'
 
 const SSO_ERRORS: Record<string, string> = {
   disabled: 'SSO is not configured on this server.',
@@ -54,14 +55,14 @@ export default function LoginPage() {
             <Flame size={34} />
           </div>
           <h1 className="text-3xl">Forge</h1>
-          <p className="text-sm text-muted-foreground">Sign in to keep lifting</p>
+          <p className="text-sm text-muted-foreground">{t('Sign in to keep lifting')}</p>
         </div>
         <div className="flex flex-col gap-3">
           <input
             autoFocus
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="Username"
+            placeholder={t('Username')}
             autoComplete="username"
             autoCapitalize="none"
             autoCorrect="off"
@@ -71,23 +72,23 @@ export default function LoginPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
+            placeholder={t('Password')}
             autoComplete="current-password"
             className="h-12 rounded-lg border border-input bg-card px-4 text-base outline-none focus:ring-2 focus:ring-ring"
           />
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && <p className="text-sm text-destructive">{tm(error)}</p>}
           <button
             type="submit"
             disabled={busy || !username || !password}
             className="touch-feedback h-12 rounded-lg bg-primary text-base font-semibold text-primary-foreground disabled:opacity-50"
           >
-            {busy ? 'Signing in…' : 'Sign in'}
+            {busy ? t('Signing in…') : t('Sign in')}
           </button>
           {sso?.enabled && (
             <>
               <div className="flex items-center gap-3 py-1 text-xs text-muted-foreground">
                 <div className="h-px flex-1 bg-border" />
-                or
+                {t('or')}
                 <div className="h-px flex-1 bg-border" />
               </div>
               <button

@@ -2,6 +2,7 @@
  *  system share sheet (Web Share API level 2). Falls back to a download
  *  where file-sharing isn't available. */
 import { formatDuration, formatVolume } from './format'
+import { intlLocale, t, tc } from './i18n'
 
 export interface ShareCardData {
   name: string
@@ -26,6 +27,46 @@ const RECORD = '#d4a843'
 const W = 1080
 const PAD = 88
 
+const CJK = /[　-〿㐀-䶿一-鿿豈-﫿＀-￯]/
+
+/** Rough width in "English characters" — a CJK glyph is about twice as wide,
+ *  and the card's height is budgeted before anything is measured. */
+function visualLength(text: string): number {
+  let n = 0
+  for (const ch of text) n += CJK.test(ch) ? 2 : 1
+  return n
+}
+
+/** Greedy wrap that also breaks *inside* a run with no spaces in it — Chinese
+ *  has no word boundaries, so space-splitting alone would never wrap. */
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+  const lines: string[] = []
+  let line = ''
+  const flush = () => {
+    if (line) lines.push(line)
+    line = ''
+  }
+  for (const word of text.split(' ')) {
+    const probe = line ? `${line} ${word}` : word
+    if (ctx.measureText(probe).width <= maxWidth) {
+      line = probe
+      continue
+    }
+    flush()
+    if (ctx.measureText(word).width <= maxWidth) {
+      line = word
+      continue
+    }
+    // Single run wider than the card — break it character by character
+    for (const ch of word) {
+      if (ctx.measureText(line + ch).width > maxWidth && line) flush()
+      line += ch
+    }
+  }
+  flush()
+  return lines
+}
+
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath()
   ctx.moveTo(x + r, y)
@@ -38,7 +79,7 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 
 function drawCard(summary: ShareCardData, unit: string): HTMLCanvasElement {
   // Height grows with content so a PR-less card isn't mostly empty space
-  const nameLines = Math.min(2, Math.ceil(summary.name.length / 22))
+  const nameLines = Math.min(2, Math.max(1, Math.ceil(visualLength(tc(summary.name)) / 22)))
   const prCount = Math.min(5, summary.prs.length)
   const musicLines = summary.music?.songs ? (summary.music.pr_song ? 2 : 1) : 0
   const H = Math.max(
@@ -66,7 +107,7 @@ function drawCard(summary: ShareCardData, unit: string): HTMLCanvasElement {
   ctx.font = "700 44px 'Bricolage Grotesque', 'Onest', sans-serif"
   ctx.textBaseline = 'top'
   ctx.fillText('Forge', PAD, PAD)
-  const date = (summary.date ?? new Date()).toLocaleDateString(undefined, {
+  const date = (summary.date ?? new Date()).toLocaleDateString(intlLocale(), {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -80,19 +121,7 @@ function drawCard(summary: ShareCardData, unit: string): HTMLCanvasElement {
   // Workout name — wrap onto two lines max
   ctx.fillStyle = INK
   ctx.font = "700 92px 'Bricolage Grotesque', 'Onest', sans-serif"
-  const words = summary.name.split(' ')
-  const lines: string[] = []
-  let line = ''
-  for (const word of words) {
-    const probe = line ? `${line} ${word}` : word
-    if (ctx.measureText(probe).width > W - PAD * 2 && line) {
-      lines.push(line)
-      line = word
-    } else {
-      line = probe
-    }
-  }
-  if (line) lines.push(line)
+  const lines = wrapText(ctx, tc(summary.name), W - PAD * 2)
   let y = 240
   for (const l of lines.slice(0, 2)) {
     ctx.fillText(l, PAD, y)
@@ -102,9 +131,9 @@ function drawCard(summary: ShareCardData, unit: string): HTMLCanvasElement {
 
   // Stat tiles
   const stats: [string, string][] = [
-    [formatDuration(summary.duration_seconds), 'Duration'],
-    [formatVolume(summary.total_volume, unit), 'Volume'],
-    [String(summary.total_sets), 'Sets'],
+    [formatDuration(summary.duration_seconds), t('Duration')],
+    [formatVolume(summary.total_volume, unit), t('Volume')],
+    [String(summary.total_sets), t('Sets')],
   ]
   const tileGap = 24
   const tileW = (W - PAD * 2 - tileGap * 2) / 3
@@ -135,7 +164,11 @@ function drawCard(summary: ShareCardData, unit: string): HTMLCanvasElement {
     if (delta !== 0) {
       ctx.fillStyle = delta > 0 ? EMBER : MUTED
       ctx.font = "600 36px 'Onest', sans-serif"
-      ctx.fillText(`${delta > 0 ? '+' : ''}${delta}% volume vs last time`, PAD, y)
+      ctx.fillText(
+        t('{delta}% volume vs last time', { delta: `${delta > 0 ? '+' : ''}${delta}` }),
+        PAD,
+        y,
+      )
       y += 76
     }
   }
@@ -144,7 +177,7 @@ function drawCard(summary: ShareCardData, unit: string): HTMLCanvasElement {
   if (summary.prs.length > 0) {
     ctx.fillStyle = MUTED
     ctx.font = "600 30px 'Onest', sans-serif"
-    ctx.fillText('PERSONAL RECORDS', PAD, y)
+    ctx.fillText(t('card|PERSONAL RECORDS'), PAD, y)
     y += 56
     for (const pr of summary.prs.slice(0, 5)) {
       const rowH = 96
@@ -159,12 +192,12 @@ function drawCard(summary: ShareCardData, unit: string): HTMLCanvasElement {
       ctx.fill()
       ctx.fillStyle = RECORD
       ctx.font = "700 28px 'Onest', sans-serif"
-      ctx.fillText('PR', PAD + 54, y + 34)
+      ctx.fillText(t('PR'), PAD + 54, y + 34)
       // Exercise + value
       ctx.fillStyle = INK
       ctx.font = "600 36px 'Onest', sans-serif"
-      const name =
-        pr.exercise_name.length > 26 ? `${pr.exercise_name.slice(0, 25)}…` : pr.exercise_name
+      const full = tc(pr.exercise_name)
+      const name = visualLength(full) > 26 ? `${full.slice(0, 25)}…` : full
       ctx.fillText(name, PAD + 148, y + 30)
       ctx.fillStyle = MUTED
       ctx.textAlign = 'right'
@@ -173,8 +206,8 @@ function drawCard(summary: ShareCardData, unit: string): HTMLCanvasElement {
         pr.kind === 'weight'
           ? `${pr.value} ${unit} × ${pr.reps}`
           : pr.kind === '1rm'
-            ? `est. 1RM ${pr.value} ${unit}${pr.weight ? ` (${pr.weight} × ${pr.reps})` : ''}`
-            : `${pr.value} reps`
+            ? `${t('est. 1RM')} ${pr.value} ${unit}${pr.weight ? ` (${pr.weight} × ${pr.reps})` : ''}`
+            : t('{n} reps', { n: pr.value })
       ctx.fillText(value, W - PAD - 32, y + 32)
       ctx.textAlign = 'left'
       y += rowH + 16
@@ -190,18 +223,22 @@ function drawCard(summary: ShareCardData, unit: string): HTMLCanvasElement {
     ctx.fillStyle = INK
     ctx.font = "500 34px 'Onest', sans-serif"
     const line =
-      `${summary.music.songs} song${summary.music.songs === 1 ? '' : 's'}` +
-      (summary.music.top_artist ? ` · mostly ${summary.music.top_artist}` : '')
+      (summary.music.songs === 1
+        ? t('{n} song', { n: summary.music.songs })
+        : t('{n} songs', { n: summary.music.songs })) +
+      (summary.music.top_artist
+        ? ` · ${t('mostly {artist}', { artist: summary.music.top_artist })}`
+        : '')
     ctx.fillText(line, PAD + 52, y)
     y += 54
     if (summary.music.pr_song) {
       ctx.fillStyle = RECORD
       ctx.font = "600 32px 'Onest', sans-serif"
       const pr =
-        summary.music.pr_song.length > 42
+        visualLength(summary.music.pr_song) > 42
           ? `${summary.music.pr_song.slice(0, 41)}…`
           : summary.music.pr_song
-      ctx.fillText(`PR song: ${pr}`, PAD + 52, y)
+      ctx.fillText(t('PR song: {song}', { song: pr }), PAD + 52, y)
       y += 54
     }
   }
@@ -209,7 +246,7 @@ function drawCard(summary: ShareCardData, unit: string): HTMLCanvasElement {
   // Footer
   ctx.fillStyle = MUTED
   ctx.font = "500 30px 'Onest', sans-serif"
-  ctx.fillText('Tracked with Forge — self-hosted iron tracking', PAD, H - PAD - 30)
+  ctx.fillText(t('Tracked with Forge — self-hosted iron tracking'), PAD, H - PAD - 30)
 
   return canvas
 }

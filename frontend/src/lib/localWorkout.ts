@@ -5,7 +5,14 @@
  *  mutation is applied by these functions, and the whole document syncs
  *  through PUT /workouts/sync keyed by a client-generated UUID. */
 import { parseUTC } from './format'
-import type { FinishResult, Routine, SetEntry, Workout, WorkoutExercise } from './types'
+import type {
+  FinishResult,
+  LoadMode,
+  Routine,
+  SetEntry,
+  Workout,
+  WorkoutExercise,
+} from './types'
 
 export interface SyncPayload {
   client_id: string
@@ -41,6 +48,7 @@ export interface ExerciseRef {
   name: string
   muscle_group: string
   equipment: string
+  load_mode?: LoadMode | null
 }
 
 export function newClientId(): string {
@@ -133,6 +141,7 @@ export function localExercise(
     name: ref.name,
     muscle_group: ref.muscle_group,
     equipment: ref.equipment,
+    load_mode: ref.load_mode ?? null,
     note: '',
     position: opts.position,
     rest_seconds: opts.restSeconds ?? null,

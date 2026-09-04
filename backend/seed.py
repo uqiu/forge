@@ -14,6 +14,13 @@ Modifier model:
 - grip:       hand orientation (Overhand / Underhand / Neutral / Mixed)
 - grip_width: Close / Wide (NULL = standard width)
 - attachment: cable-station attachment (Rope / Straight Bar / V-Bar / ...)
+- load:       'single' (one dumbbell/kettlebell — a goblet squat) or 'pair'
+  (one in each hand — a lateral raise). Only set for free weights held in the
+  hands; a barbell, machine, cable or bodyweight movement leaves it out.
+  Display only, so the reader can tell what the logged number refers to — the
+  weight recorded is always one implement's either way. Movements people do
+  both ways (split squats, lunges, RDLs) carry the common default and can be
+  overridden per user.
 - base:       variant_of link — groups a variant under its parent exercise
 """
 from sqlalchemy import select
@@ -100,21 +107,21 @@ CATALOG: list[tuple[str, str, str, dict]] = [
         {"width": "Wide", "base": "Smith Machine Decline Press"},
     ),
     # ── Chest: dumbbell presses ──────────────────────────────────────────────
-    ("Dumbbell Bench Press", "Chest", "Dumbbell", {}),
+    ("Dumbbell Bench Press", "Chest", "Dumbbell", {"load": "pair"}),
     (
         "Dumbbell Bench Press (Neutral Grip)",
         "Chest",
         "Dumbbell",
-        {"grip": "Neutral", "base": "Dumbbell Bench Press"},
+        {"load": "pair", "grip": "Neutral", "base": "Dumbbell Bench Press"},
     ),
-    ("Incline Dumbbell Press", "Chest", "Dumbbell", {}),
+    ("Incline Dumbbell Press", "Chest", "Dumbbell", {"load": "pair"}),
     (
         "Incline Dumbbell Press (Neutral Grip)",
         "Chest",
         "Dumbbell",
-        {"grip": "Neutral", "base": "Incline Dumbbell Press"},
+        {"load": "pair", "grip": "Neutral", "base": "Incline Dumbbell Press"},
     ),
-    ("Decline Dumbbell Press", "Chest", "Dumbbell", {}),
+    ("Decline Dumbbell Press", "Chest", "Dumbbell", {"load": "pair"}),
     # ── Chest: machine presses (stack vs plate-loaded are different machines) ─
     ("Machine Chest Press", "Chest", "Machine", {}),
     (
@@ -135,8 +142,8 @@ CATALOG: list[tuple[str, str, str, dict]] = [
     ("Plate-Loaded Incline Chest Press", "Chest", "Plate-Loaded", {}),
     ("Plate-Loaded Decline Chest Press", "Chest", "Plate-Loaded", {}),
     # ── Chest: flys, push-ups, dips ──────────────────────────────────────────
-    ("Chest Fly", "Chest", "Dumbbell", {}),
-    ("Incline Chest Fly", "Chest", "Dumbbell", {}),
+    ("Chest Fly", "Chest", "Dumbbell", {"load": "pair"}),
+    ("Incline Chest Fly", "Chest", "Dumbbell", {"load": "pair"}),
     ("Cable Fly", "Chest", "Cable", {}),
     ("Low-to-High Cable Fly", "Chest", "Cable", {"base": "Cable Fly"}),
     ("Incline Cable Fly", "Chest", "Cable", {}),
@@ -179,7 +186,7 @@ CATALOG: list[tuple[str, str, str, dict]] = [
         {"grip": "Underhand", "base": "Smith Machine Row"},
     ),
     ("Landmine Row", "Back", "Barbell", {"grip": "Neutral"}),
-    ("Dumbbell Row", "Back", "Dumbbell", {"grip": "Neutral"}),
+    ("Dumbbell Row", "Back", "Dumbbell", {"load": "single", "grip": "Neutral"}),
     ("T-Bar Row", "Back", "Plate-Loaded", {"grip": "Neutral"}),
     (
         "T-Bar Row (Wide Grip)",
@@ -188,7 +195,7 @@ CATALOG: list[tuple[str, str, str, dict]] = [
         {"grip": "Overhand", "width": "Wide", "base": "T-Bar Row"},
     ),
     ("Chest Supported Row", "Back", "Machine", {}),
-    ("Chest-Supported Dumbbell Row", "Back", "Dumbbell", {"grip": "Neutral"}),
+    ("Chest-Supported Dumbbell Row", "Back", "Dumbbell", {"load": "pair", "grip": "Neutral"}),
     ("Machine Row", "Back", "Machine", {}),
     (
         "Machine Row (Wide Grip)",
@@ -288,7 +295,7 @@ CATALOG: list[tuple[str, str, str, dict]] = [
     ("Weighted Pull-Up", "Back", "Bodyweight", {"grip": "Overhand", "base": "Pull-Up"}),
     ("Assisted Pull-Up", "Back", "Machine", {"grip": "Overhand"}),
     ("Inverted Row", "Back", "Bodyweight", {"grip": "Overhand"}),
-    ("Pullover", "Back", "Dumbbell", {}),
+    ("Pullover", "Back", "Dumbbell", {"load": "single"}),
     ("Cable Pullover", "Back", "Cable", {"attachment": "Rope"}),
     ("Back Extension", "Back", "Bodyweight", {}),
     ("Good Morning", "Back", "Barbell", {}),
@@ -298,14 +305,14 @@ CATALOG: list[tuple[str, str, str, dict]] = [
     ("Seated Barbell Press", "Shoulders", "Barbell", {}),
     ("Smith Machine Shoulder Press", "Shoulders", "Smith Machine", {}),
     ("Landmine Press", "Shoulders", "Barbell", {"grip": "Neutral"}),
-    ("Seated Dumbbell Press", "Shoulders", "Dumbbell", {}),
+    ("Seated Dumbbell Press", "Shoulders", "Dumbbell", {"load": "pair"}),
     (
         "Seated Dumbbell Press (Neutral Grip)",
         "Shoulders",
         "Dumbbell",
-        {"grip": "Neutral", "base": "Seated Dumbbell Press"},
+        {"load": "pair", "grip": "Neutral", "base": "Seated Dumbbell Press"},
     ),
-    ("Arnold Press", "Shoulders", "Dumbbell", {"base": "Seated Dumbbell Press"}),
+    ("Arnold Press", "Shoulders", "Dumbbell", {"load": "pair", "base": "Seated Dumbbell Press"}),
     ("Machine Shoulder Press", "Shoulders", "Machine", {}),
     (
         "Machine Shoulder Press (Neutral Grip)",
@@ -320,17 +327,17 @@ CATALOG: list[tuple[str, str, str, dict]] = [
         "Plate-Loaded",
         {"grip": "Neutral", "base": "Plate-Loaded Shoulder Press"},
     ),
-    ("Lateral Raise", "Shoulders", "Dumbbell", {}),
+    ("Lateral Raise", "Shoulders", "Dumbbell", {"load": "pair"}),
     ("Cable Lateral Raise", "Shoulders", "Cable", {"attachment": "Single Handle"}),
     ("Machine Lateral Raise", "Shoulders", "Machine", {}),
-    ("Front Raise", "Shoulders", "Dumbbell", {}),
+    ("Front Raise", "Shoulders", "Dumbbell", {"load": "pair"}),
     ("Cable Front Raise", "Shoulders", "Cable", {"attachment": "Straight Bar"}),
-    ("Rear Delt Fly", "Shoulders", "Dumbbell", {}),
+    ("Rear Delt Fly", "Shoulders", "Dumbbell", {"load": "pair"}),
     ("Cable Reverse Fly", "Shoulders", "Cable", {}),
     ("Reverse Pec Deck", "Shoulders", "Machine", {}),
     ("Face Pull", "Shoulders", "Cable", {"attachment": "Rope"}),
     ("Barbell Shrug", "Shoulders", "Barbell", {}),
-    ("Dumbbell Shrug", "Shoulders", "Dumbbell", {}),
+    ("Dumbbell Shrug", "Shoulders", "Dumbbell", {"load": "pair"}),
     ("Upright Row", "Shoulders", "Barbell", {}),
     (
         "Upright Row (Wide Grip)",
@@ -355,13 +362,13 @@ CATALOG: list[tuple[str, str, str, dict]] = [
         {"grip": "Underhand", "width": "Wide", "base": "Barbell Curl"},
     ),
     ("EZ Bar Curl", "Arms", "EZ Bar", {}),
-    ("Bicep Curl", "Arms", "Dumbbell", {"grip": "Underhand"}),
-    ("Hammer Curl", "Arms", "Dumbbell", {"grip": "Neutral", "base": "Bicep Curl"}),
-    ("Incline Dumbbell Curl", "Arms", "Dumbbell", {}),
-    ("Concentration Curl", "Arms", "Dumbbell", {}),
-    ("Spider Curl", "Arms", "Dumbbell", {}),
+    ("Bicep Curl", "Arms", "Dumbbell", {"load": "pair", "grip": "Underhand"}),
+    ("Hammer Curl", "Arms", "Dumbbell", {"load": "pair", "grip": "Neutral", "base": "Bicep Curl"}),
+    ("Incline Dumbbell Curl", "Arms", "Dumbbell", {"load": "pair"}),
+    ("Concentration Curl", "Arms", "Dumbbell", {"load": "single"}),
+    ("Spider Curl", "Arms", "Dumbbell", {"load": "pair"}),
     ("Preacher Curl", "Arms", "EZ Bar", {}),
-    ("Dumbbell Preacher Curl", "Arms", "Dumbbell", {}),
+    ("Dumbbell Preacher Curl", "Arms", "Dumbbell", {"load": "single"}),
     ("Machine Preacher Curl", "Arms", "Machine", {}),
     ("Machine Bicep Curl", "Arms", "Machine", {}),
     ("Cable Curl", "Arms", "Cable", {"grip": "Underhand", "attachment": "Straight Bar"}),
@@ -377,7 +384,7 @@ CATALOG: list[tuple[str, str, str, dict]] = [
         "Cable",
         {"grip": "Underhand", "attachment": "Single Handle", "base": "Cable Curl"},
     ),
-    ("Wrist Curl", "Arms", "Dumbbell", {}),
+    ("Wrist Curl", "Arms", "Dumbbell", {"load": "pair"}),
     # ── Arms: triceps ────────────────────────────────────────────────────────
     ("Skull Crusher", "Arms", "EZ Bar", {}),
     ("Tricep Pushdown", "Arms", "Cable", {"grip": "Overhand", "attachment": "Straight Bar"}),
@@ -405,9 +412,9 @@ CATALOG: list[tuple[str, str, str, dict]] = [
         "Cable",
         {"attachment": "Single Handle", "base": "Tricep Pushdown"},
     ),
-    ("Overhead Tricep Extension", "Arms", "Dumbbell", {}),
+    ("Overhead Tricep Extension", "Arms", "Dumbbell", {"load": "single"}),
     ("Overhead Cable Extension", "Arms", "Cable", {"attachment": "Rope"}),
-    ("Tricep Extension", "Arms", "Dumbbell", {}),
+    ("Tricep Extension", "Arms", "Dumbbell", {"load": "pair"}),
     ("Machine Tricep Extension", "Arms", "Machine", {}),
     # ── Legs: squats ─────────────────────────────────────────────────────────
     ("Back Squat", "Legs", "Barbell", {}),
@@ -416,7 +423,7 @@ CATALOG: list[tuple[str, str, str, dict]] = [
     ("Zercher Squat", "Legs", "Barbell", {}),
     ("Smith Machine Squat", "Legs", "Smith Machine", {}),
     ("Belt Squat", "Legs", "Plate-Loaded", {}),
-    ("Goblet Squat", "Legs", "Dumbbell", {}),
+    ("Goblet Squat", "Legs", "Dumbbell", {"load": "single"}),
     ("Pistol Squat", "Legs", "Bodyweight", {}),
     ("Hack Squat", "Legs", "Plate-Loaded", {}),
     ("Pendulum Squat", "Legs", "Plate-Loaded", {}),
@@ -431,20 +438,20 @@ CATALOG: list[tuple[str, str, str, dict]] = [
     ),
     # ── Legs: hinges ─────────────────────────────────────────────────────────
     ("Romanian Deadlift", "Legs", "Barbell", {}),
-    ("Dumbbell Romanian Deadlift", "Legs", "Dumbbell", {}),
+    ("Dumbbell Romanian Deadlift", "Legs", "Dumbbell", {"load": "pair"}),
     ("Stiff-Leg Deadlift", "Legs", "Barbell", {}),
-    ("Single-Leg Deadlift", "Legs", "Dumbbell", {}),
+    ("Single-Leg Deadlift", "Legs", "Dumbbell", {"load": "single"}),
     ("Hip Thrust", "Legs", "Barbell", {}),
     ("Machine Hip Thrust", "Legs", "Machine", {}),
     ("Glute Bridge", "Legs", "Bodyweight", {}),
     ("Cable Kickback", "Legs", "Cable", {"attachment": "Ankle Strap"}),
     # ── Legs: single-leg work ────────────────────────────────────────────────
-    ("Bulgarian Split Squat", "Legs", "Dumbbell", {}),
-    ("Walking Lunge", "Legs", "Dumbbell", {}),
-    ("Reverse Lunge", "Legs", "Dumbbell", {}),
+    ("Bulgarian Split Squat", "Legs", "Dumbbell", {"load": "pair"}),
+    ("Walking Lunge", "Legs", "Dumbbell", {"load": "pair"}),
+    ("Reverse Lunge", "Legs", "Dumbbell", {"load": "pair"}),
     ("Barbell Lunge", "Legs", "Barbell", {}),
     ("Static Lunge", "Legs", "Bodyweight", {}),
-    ("Step-Up", "Legs", "Dumbbell", {}),
+    ("Step-Up", "Legs", "Dumbbell", {"load": "pair"}),
     # ── Legs: machines & calves ──────────────────────────────────────────────
     ("Leg Extension", "Legs", "Machine", {}),
     ("Single-Leg Extension", "Legs", "Machine", {"base": "Leg Extension"}),
@@ -477,15 +484,15 @@ CATALOG: list[tuple[str, str, str, dict]] = [
     ("Power Clean", "Full Body", "Barbell", {}),
     ("Snatch", "Full Body", "Barbell", {}),
     ("Thruster", "Full Body", "Barbell", {}),
-    ("Kettlebell Swing", "Full Body", "Kettlebell", {}),
-    ("Farmer's Walk", "Full Body", "Dumbbell", {}),
+    ("Kettlebell Swing", "Full Body", "Kettlebell", {"load": "single"}),
+    ("Farmer's Walk", "Full Body", "Dumbbell", {"load": "pair"}),
     # ── Systematic variant fill (review round 2) ─────────────────────────────
     # Chest
     (
         "Decline Dumbbell Press (Neutral Grip)",
         "Chest",
         "Dumbbell",
-        {"grip": "Neutral", "base": "Decline Dumbbell Press"},
+        {"load": "pair", "grip": "Neutral", "base": "Decline Dumbbell Press"},
     ),
     (
         "Incline Machine Chest Press (Neutral Grip)",
@@ -638,7 +645,7 @@ CATALOG: list[tuple[str, str, str, dict]] = [
         "Cable",
         {"grip": "Overhand", "attachment": "Straight Bar", "base": "Cable Curl"},
     ),
-    ("Reverse Wrist Curl", "Arms", "Dumbbell", {"grip": "Overhand", "base": "Wrist Curl"}),
+    ("Reverse Wrist Curl", "Arms", "Dumbbell", {"load": "pair", "grip": "Overhand", "base": "Wrist Curl"}),
     (
         "Overhead Cable Extension (Straight Bar)",
         "Arms",
@@ -810,6 +817,7 @@ def seed_exercises(db: Session) -> None:
                 grip=meta.get("grip"),
                 grip_width=meta.get("width"),
                 attachment=meta.get("attachment"),
+                load_mode=meta.get("load"),
             )
             db.add(exercise)
             existing[name] = exercise
@@ -826,6 +834,7 @@ def seed_exercises(db: Session) -> None:
             "grip": meta.get("grip"),
             "grip_width": meta.get("width"),
             "attachment": meta.get("attachment"),
+            "load_mode": meta.get("load"),
             "variant_of_id": base.id if base is not None else None,
         }
         for field, value in target.items():

@@ -16,6 +16,7 @@ import {
   parseUTC,
   toDatetimeLocal,
 } from '../lib/format'
+import { t, tc, tm } from '../lib/i18n'
 import { shareWorkoutCard } from '../lib/shareCard'
 import { toast } from '../lib/toast'
 import type { SetEntry, Workout, WorkoutExercise, WorkoutSong } from '../lib/types'
@@ -125,10 +126,10 @@ function EditSetRow({ set, unit, bodyweight, onCommit, onToggleWarmup, onDelete 
     <div className="grid grid-cols-[2rem_1fr_4.5rem_4rem_2.75rem] items-center gap-2 py-1.5">
       <button
         onClick={onToggleWarmup}
-        aria-label={set.is_warmup ? 'Make working set' : 'Make warm-up set'}
+        aria-label={set.is_warmup ? t('Make working set') : t('Make warm-up set')}
         className="touch-feedback tnum rounded-md py-1 text-center text-sm font-semibold text-muted-foreground"
       >
-        {set.is_warmup ? <span className="text-warning">W</span> : set.position + 1}
+        {set.is_warmup ? <span className="text-warning">{t('badge|W')}</span> : set.position + 1}
       </button>
       <span />
       <input
@@ -137,7 +138,7 @@ function EditSetRow({ set, unit, bodyweight, onCommit, onToggleWarmup, onDelete 
         onBlur={commit}
         onFocus={(e) => e.target.select()}
         inputMode="decimal"
-        placeholder={bodyweight ? 'BW' : unit}
+        placeholder={bodyweight ? t('BW') : unit}
         className="tnum h-9 rounded-md border border-input bg-background px-1 text-center text-base font-medium outline-none placeholder:text-muted-foreground/50 focus:ring-2 focus:ring-ring"
       />
       <input
@@ -146,12 +147,12 @@ function EditSetRow({ set, unit, bodyweight, onCommit, onToggleWarmup, onDelete 
         onBlur={commit}
         onFocus={(e) => e.target.select()}
         inputMode="numeric"
-        placeholder="reps"
+        placeholder={t('placeholder|reps')}
         className="tnum h-9 rounded-md border border-input bg-background px-1 text-center text-base font-medium outline-none placeholder:text-muted-foreground/50 focus:ring-2 focus:ring-ring"
       />
       <button
         onClick={onDelete}
-        aria-label="Delete set"
+        aria-label={t('Delete set')}
         className="touch-feedback mx-auto flex h-9 w-9 items-center justify-center rounded-lg border border-input bg-secondary text-muted-foreground"
       >
         <X size={16} />
@@ -324,7 +325,7 @@ export default function WorkoutDetailPage() {
         unit,
       )
     } catch {
-      toast('Could not create the share image')
+      toast(t('Could not create the share image'))
     }
   }
 
@@ -334,17 +335,19 @@ export default function WorkoutDetailPage() {
         <button
           onClick={() => (editing ? finishEditing() : navigate(-1))}
           className="touch-feedback -ml-2 rounded-full p-2 text-muted-foreground"
-          aria-label="Back"
+          aria-label={t('Back')}
         >
           <ChevronLeft size={24} />
         </button>
         <div className="min-w-0 flex-1">
           {editing ? (
             <input
-              defaultValue={workout.name}
+              defaultValue={tc(workout.name)}
               onBlur={(e) => {
                 const name = e.target.value.trim()
-                if (name && name !== workout.name) {
+                // Compared against the *displayed* name, so blurring an
+                // untouched field never saves the translation as the name
+                if (name && name !== tc(workout.name)) {
                   api<Workout>(`/workouts/${workout.id}`, { method: 'PATCH', body: { name } }).then(replaceWorkout)
                 }
               }}
@@ -352,7 +355,7 @@ export default function WorkoutDetailPage() {
               style={{ fontFamily: "'Bricolage Grotesque', 'Onest', sans-serif" }}
             />
           ) : (
-            <h1 className="truncate text-2xl">{workout.name}</h1>
+            <h1 className="truncate text-2xl">{tc(workout.name)}</h1>
           )}
           {editing ? (
             <span className="flex flex-wrap items-center gap-1.5">
@@ -387,7 +390,7 @@ export default function WorkoutDetailPage() {
                         })
                           .then(replaceWorkout)
                           .catch((err) =>
-                            toast(err instanceof Error ? err.message : 'Could not update the end time'),
+                            toast(err instanceof Error ? tm(err.message) : t('Could not update the end time')),
                           )
                       }
                     }}
@@ -398,7 +401,10 @@ export default function WorkoutDetailPage() {
             </span>
           ) : (
             <p className="text-sm text-muted-foreground">
-              {formatRelativeDate(workout.started_at)} at {formatTime(workout.started_at)}
+              {t('{date} at {time}', {
+                date: formatRelativeDate(workout.started_at),
+                time: formatTime(workout.started_at),
+              })}
             </p>
           )}
         </div>
@@ -408,28 +414,28 @@ export default function WorkoutDetailPage() {
             disabled={saving}
             className="touch-feedback flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
           >
-            <Check size={16} /> {saving ? 'Saving…' : 'Done'}
+            <Check size={16} /> {saving ? t('Saving…') : t('Done')}
           </button>
         ) : (
           <>
             <button
               onClick={share}
               className="touch-feedback rounded-full p-2 text-muted-foreground"
-              aria-label="Share workout"
+              aria-label={t('Share workout')}
             >
               <Share size={19} />
             </button>
             <button
               onClick={() => setEditing(true)}
               className="touch-feedback rounded-full p-2 text-muted-foreground"
-              aria-label="Edit workout"
+              aria-label={t('Edit workout')}
             >
               <Pencil size={19} />
             </button>
             <button
               onClick={() => setConfirmDelete(true)}
               className="touch-feedback rounded-full p-2 text-muted-foreground"
-              aria-label="Delete workout"
+              aria-label={t('Delete workout')}
             >
               <Trash2 size={19} />
             </button>
@@ -450,13 +456,13 @@ export default function WorkoutDetailPage() {
                 await start({ workoutId: workout.id })
                 navigate('/workout', { viewTransition: true })
               } catch (e) {
-                setRepeatError(e instanceof Error ? e.message : 'Could not start workout')
+                setRepeatError(e instanceof Error ? tm(e.message) : t('Could not start workout'))
               }
             }}
             className="touch-feedback mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-accent-soft py-3 font-semibold text-primary"
           >
             <RotateCcw size={17} />
-            {activeWorkout ? 'Resume current workout' : 'Repeat this workout'}
+            {activeWorkout ? t('Resume current workout') : t('Repeat this workout')}
           </button>
           {repeatError && <p className="mt-2 text-sm text-destructive">{repeatError}</p>}
         </>
@@ -475,7 +481,9 @@ export default function WorkoutDetailPage() {
           <div className="rounded-xl border bg-card p-3 text-center">
             <Trophy size={16} className="mx-auto mb-1 text-muted-foreground" />
             <div className="tnum font-semibold">
-              {workout.pr_count ?? 0} PR{(workout.pr_count ?? 0) === 1 ? '' : 's'}
+              {(workout.pr_count ?? 0) === 1
+                ? t('{n} PR', { n: workout.pr_count ?? 0 })
+                : t('{n} PRs', { n: workout.pr_count ?? 0 })}
             </div>
           </div>
         </div>
@@ -490,7 +498,7 @@ export default function WorkoutDetailPage() {
               body: { notes: e.target.value },
             }).then(replaceWorkout)
           }
-          placeholder="Notes"
+          placeholder={t('Notes')}
           rows={2}
           className="mt-3 w-full rounded-xl border border-input bg-card px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring"
         />
@@ -516,10 +524,10 @@ export default function WorkoutDetailPage() {
           >
             <div className={cn('flex justify-between gap-2', editing ? 'items-center' : 'items-baseline')}>
               {editing ? (
-                <span className="font-semibold text-primary">{we.name}</span>
+                <span className="font-semibold text-primary">{tc(we.name)}</span>
               ) : (
                 <Link to={`/exercises/${we.exercise_id}`} className="min-w-0 font-semibold text-primary">
-                  {we.name}
+                  {tc(we.name)}
                 </Link>
               )}
               {!editing && bestE1rm(we) != null && (
@@ -529,7 +537,7 @@ export default function WorkoutDetailPage() {
                 <button
                   onClick={() => removeExercise(we)}
                   className="touch-feedback rounded-full p-1.5 text-muted-foreground"
-                  aria-label={`Remove ${we.name}`}
+                  aria-label={t('Remove {name}', { name: tc(we.name) })}
                 >
                   <Trash2 size={16} />
                 </button>
@@ -538,10 +546,10 @@ export default function WorkoutDetailPage() {
             {editing ? (
               <>
                 <div className="mt-2 grid grid-cols-[2rem_1fr_4.5rem_4rem_2.75rem] gap-2 pb-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-                  <span className="text-center">Set</span>
+                  <span className="text-center">{t('col|Set')}</span>
                   <span />
                   <span className="text-center">{unit}</span>
-                  <span className="text-center">Reps</span>
+                  <span className="text-center">{t('col|Reps')}</span>
                   <span />
                 </div>
                 <div className="divide-y divide-border/60">
@@ -561,7 +569,7 @@ export default function WorkoutDetailPage() {
                   onClick={() => addSet(we.id)}
                   className="touch-feedback mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg bg-secondary py-2 text-sm font-semibold text-secondary-foreground"
                 >
-                  <Plus size={16} /> Add set
+                  <Plus size={16} /> {t('Add set')}
                 </button>
               </>
             ) : (
@@ -569,7 +577,11 @@ export default function WorkoutDetailPage() {
                 {we.sets.map((set) => (
                   <Fragment key={set.id}>
                     <span className="text-center font-semibold text-muted-foreground">
-                      {set.is_warmup ? <span className="text-warning">W</span> : set.position + 1}
+                      {set.is_warmup ? (
+                        <span className="text-warning">{t('badge|W')}</span>
+                      ) : (
+                        set.position + 1
+                      )}
                     </span>
                     <span className="text-right">{formatSetWeight(set.weight, unit)}</span>
                     <span className="flex items-center gap-1.5">
@@ -591,7 +603,7 @@ export default function WorkoutDetailPage() {
             onClick={() => setPickerOpen(true)}
             className="touch-feedback flex w-full items-center justify-center gap-2 rounded-xl border border-dashed py-3.5 font-semibold text-primary"
           >
-            <Plus size={18} /> Add exercise
+            <Plus size={18} /> {t('Add exercise')}
           </button>
         )}
       </div>
@@ -616,10 +628,10 @@ export default function WorkoutDetailPage() {
           <section className="animate-card-appear rounded-xl border bg-card p-4">
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-1.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-                <Music size={13} /> Soundtrack
+                <Music size={13} /> {t('Soundtrack')}
               </span>
               <span className="tnum text-xs text-muted-foreground">
-                {total} song{total === 1 ? '' : 's'}
+                {total === 1 ? t('{n} song', { n: total }) : t('{n} songs', { n: total })}
               </span>
             </div>
             <div className="md:columns-2 md:gap-8">
@@ -627,7 +639,7 @@ export default function WorkoutDetailPage() {
                 <div key={gi} className="mt-3 break-inside-avoid">
                   {group.exercise && (
                     <div className="mb-1.5 text-[10px] font-semibold tracking-wide text-primary/85 uppercase">
-                      {group.exercise}
+                      {tc(group.exercise)}
                     </div>
                   )}
                   <div className="flex flex-col gap-1.5">
@@ -656,7 +668,7 @@ export default function WorkoutDetailPage() {
                 onClick={() => setShowAllSongs((v) => !v)}
                 className="touch-feedback mt-3 w-full rounded-lg bg-secondary py-2 text-sm font-semibold text-secondary-foreground"
               >
-                {showAllSongs ? 'Show fewer' : `Show all ${total} songs`}
+                {showAllSongs ? t('Show fewer') : t('Show all {n} songs', { n: total })}
               </button>
             )}
           </section>
@@ -666,16 +678,20 @@ export default function WorkoutDetailPage() {
 
       <ExercisePicker open={pickerOpen} onClose={() => setPickerOpen(false)} onPick={(e) => addExercise(e.id)} />
 
-      <Sheet open={confirmDelete} onClose={() => setConfirmDelete(false)} title="Delete workout?">
+      <Sheet
+        open={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        title={t('Delete workout?')}
+      >
         <div className="flex flex-col gap-3 pt-1">
           <p className="text-sm text-muted-foreground">
-            This permanently removes the workout and its sets from your history.
+            {t('This permanently removes the workout and its sets from your history.')}
           </p>
           <button
             onClick={remove}
             className="touch-feedback h-12 rounded-xl bg-destructive font-semibold text-white"
           >
-            Delete workout
+            {t('Delete workout')}
           </button>
         </div>
       </Sheet>

@@ -1,3 +1,5 @@
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
@@ -29,9 +31,16 @@ def list_exercises(user: User = Depends(get_current_user), db: Session = Depends
         .group_by(WorkoutExercise.exercise_id)
         .subquery()
     )
+    # The reader's own load-mode override, where they set one
+    override_sq = (
+        select(ExerciseNote.exercise_id, ExerciseNote.load_mode)
+        .where(ExerciseNote.user_id == user.id, ExerciseNote.load_mode.is_not(None))
+        .subquery()
+    )
     rows = db.execute(
-        select(Exercise, last_used_sq.c.last_used)
+        select(Exercise, last_used_sq.c.last_used, override_sq.c.load_mode)
         .outerjoin(last_used_sq, Exercise.id == last_used_sq.c.exercise_id)
+        .outerjoin(override_sq, Exercise.id == override_sq.c.exercise_id)
         .where(_visible(user.id))
         .order_by(Exercise.name)
     ).all()
@@ -44,11 +53,12 @@ def list_exercises(user: User = Depends(get_current_user), db: Session = Depends
             grip=e.grip,
             grip_width=e.grip_width,
             attachment=e.attachment,
+            load_mode=override or e.load_mode,
             variant_of_id=e.variant_of_id,
             is_custom=e.owner_id is not None,
             last_used=last_used,
         )
-        for e, last_used in rows
+        for e, last_used, override in rows
     ]
 
 
@@ -71,6 +81,7 @@ def create_exercise(
         grip=body.grip,
         grip_width=body.grip_width,
         attachment=body.attachment,
+        load_mode=body.load_mode,
         owner_id=user.id,
     )
     db.add(exercise)
@@ -83,6 +94,7 @@ def create_exercise(
         grip=exercise.grip,
         grip_width=exercise.grip_width,
         attachment=exercise.attachment,
+        load_mode=exercise.load_mode,
         is_custom=True,
     )
 
@@ -146,17 +158,22 @@ def create_variant(
             grip=existing.grip,
             grip_width=existing.grip_width,
             attachment=existing.attachment,
+            load_mode=existing.load_mode,
             variant_of_id=existing.variant_of_id,
             is_custom=existing.owner_id is not None,
         )
 
+    equipment = body.equipment or base.equipment
     exercise = Exercise(
         name=name,
         muscle_group=base.muscle_group,
-        equipment=body.equipment or base.equipment,
+        equipment=equipment,
         grip=body.grip,
         grip_width=body.grip_width,
         attachment=body.attachment,
+        # A variant that re-loads the movement (dumbbell → cable) can't inherit
+        # the base's implement count; one that only changes the grip can.
+        load_mode=base.load_mode if equipment == base.equipment else None,
         variant_of_id=base.id,
         owner_id=user.id,
     )
@@ -170,6 +187,7 @@ def create_variant(
         grip=exercise.grip,
         grip_width=exercise.grip_width,
         attachment=exercise.attachment,
+        load_mode=exercise.load_mode,
         variant_of_id=exercise.variant_of_id,
         is_custom=True,
     )
@@ -217,16 +235,67 @@ def put_note(
         )
     ).scalar_one_or_none()
     text = body.text.strip()
-    if not text:
-        if note is not None:
-            db.delete(note)
-    elif note is None:
-        db.add(ExerciseNote(user_id=user.id, exercise_id=exercise_id, text=text))
+    if note is None:
+        if text:
+            db.add(ExerciseNote(user_id=user.id, exercise_id=exercise_id, text=text))
     else:
         note.text = text
-        db.add(note)
+        # The row also carries the load-mode override, so it only goes away
+        # once nothing is left on it
+        if not text and note.load_mode is None:
+            db.delete(note)
+        else:
+            db.add(note)
     db.commit()
     return {"text": text}
+
+
+class LoadModeIn(BaseModel):
+    load_mode: Literal["single", "pair"] | None = None
+
+
+@router.put("/{exercise_id}/load-mode")
+def put_load_mode(
+    exercise_id: int,
+    body: LoadModeIn,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Override how this reader loads an exercise — one implement or two.
+
+    Seed exercises are shared rows whose catalog metadata is re-synced on every
+    startup, so a personal opinion about one can't be stored on the exercise;
+    it goes on the user's own row. `null` clears the override and falls back to
+    the catalog's default.
+    """
+    exercise = db.execute(
+        select(Exercise).where(Exercise.id == exercise_id, _visible(user.id))
+    ).scalar_one_or_none()
+    if exercise is None:
+        raise HTTPException(status_code=404, detail="Exercise not found")
+    note = db.execute(
+        select(ExerciseNote).where(
+            ExerciseNote.user_id == user.id, ExerciseNote.exercise_id == exercise_id
+        )
+    ).scalar_one_or_none()
+    if note is None:
+        if body.load_mode is not None:
+            db.add(
+                ExerciseNote(
+                    user_id=user.id,
+                    exercise_id=exercise_id,
+                    text="",
+                    load_mode=body.load_mode,
+                )
+            )
+    else:
+        note.load_mode = body.load_mode
+        if body.load_mode is None and not note.text:
+            db.delete(note)
+        else:
+            db.add(note)
+    db.commit()
+    return {"load_mode": body.load_mode or exercise.load_mode}
 
 
 @router.get("/{exercise_id}/recent")
@@ -421,6 +490,7 @@ def exercise_stats(
                 "grip_width": v.grip_width,
                 "attachment": v.attachment,
                 "equipment": v.equipment,
+                "load_mode": v.load_mode,
             }
             for v in family_members
         ]
@@ -446,11 +516,12 @@ def exercise_stats(
         candidates.sort(key=lambda s: -len(s["points"]))
         series = sorted(candidates[:4], key=lambda s: s["name"].lower())
 
-    note = db.execute(
-        select(ExerciseNote.text).where(
+    personal = db.execute(
+        select(ExerciseNote.text, ExerciseNote.load_mode).where(
             ExerciseNote.user_id == user.id, ExerciseNote.exercise_id == exercise_id
         )
-    ).scalar_one_or_none()
+    ).one_or_none()
+    note, load_override = personal if personal else (None, None)
 
     return {
         "exercise": {
@@ -461,6 +532,10 @@ def exercise_stats(
             "grip": exercise.grip,
             "grip_width": exercise.grip_width,
             "attachment": exercise.attachment,
+            "load_mode": load_override or exercise.load_mode,
+            # Whether the effective value is the reader's own choice, so the
+            # editor can show "following the catalog" versus an override
+            "load_mode_default": exercise.load_mode,
             "variant_of_id": exercise.variant_of_id,
             "is_custom": exercise.owner_id is not None,
         },
@@ -505,6 +580,7 @@ def update_exercise(
     exercise.grip = body.grip
     exercise.grip_width = body.grip_width
     exercise.attachment = body.attachment
+    exercise.load_mode = body.load_mode
     db.add(exercise)
     db.commit()
     return ExerciseOut(
@@ -515,6 +591,7 @@ def update_exercise(
         grip=exercise.grip,
         grip_width=exercise.grip_width,
         attachment=exercise.attachment,
+        load_mode=exercise.load_mode,
         variant_of_id=exercise.variant_of_id,
         is_custom=True,
     )
