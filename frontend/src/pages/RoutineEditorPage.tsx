@@ -1,11 +1,13 @@
-import { ChevronLeft, Flame, GripVertical, Link2, Minus, Plus, Trash2 } from 'lucide-react'
+import { ChevronLeft, CirclePlay, Flame, GripVertical, Link2, Minus, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import ConfirmSheet from '../components/ConfirmSheet'
+import ExerciseDemoSheet from '../components/ExerciseDemoSheet'
 import ExercisePicker from '../components/ExercisePicker'
 import Skeleton from '../components/Skeleton'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../lib/api'
+import { hasDemo } from '../lib/exerciseDemos'
 import { t, tc, tm } from '../lib/i18n'
 import type { Exercise, Routine } from '../lib/types'
 import { restLabel } from '../lib/format'
@@ -38,6 +40,7 @@ export default function RoutineEditorPage() {
   const [busy, setBusy] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [confirmLeave, setConfirmLeave] = useState(false)
+  const [demoName, setDemoFor] = useState<string | null>(null)
   const { handleProps, itemProps } = useDragReorder(exercises.length, (from, to) =>
     setExercises((xs) => moveItem(xs, from, to)),
   )
@@ -172,6 +175,15 @@ export default function RoutineEditorPage() {
                 <GripVertical size={16} />
               </button>
               <span className="min-w-0 flex-1 truncate font-medium">{tc(exercise.name)}</span>
+              {hasDemo(exercise.name) && (
+                <button
+                  onClick={() => setDemoFor(exercise.name)}
+                  className="touch-feedback rounded-full p-1.5 text-muted-foreground"
+                  aria-label={t('How to do {name}', { name: tc(exercise.name) })}
+                >
+                  <CirclePlay size={16} />
+                </button>
+              )}
               <button
                 onClick={() => {
                   setDirty(true)
@@ -322,6 +334,12 @@ export default function RoutineEditorPage() {
           setConfirmLeave(false)
           navigate(-1)
         }}
+      />
+
+      <ExerciseDemoSheet
+        name={demoName ?? ''}
+        open={demoName != null}
+        onClose={() => setDemoFor(null)}
       />
 
       <ExercisePicker open={pickerOpen} onClose={() => setPickerOpen(false)} onPick={addExercise} />

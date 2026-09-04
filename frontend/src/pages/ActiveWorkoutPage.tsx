@@ -1,7 +1,8 @@
-import { ArrowLeftRight, Calculator, Check, ChevronDown, CloudOff, Flag, Flame, GripVertical, Link2, MoreHorizontal, Plus, StickyNote, Timer, Trash2, TrendingDown, TrendingUp, Unlink2, X } from 'lucide-react'
+import { ArrowLeftRight, Calculator, Check, ChevronDown, CirclePlay, CloudOff, Flag, Flame, GripVertical, Link2, MoreHorizontal, Plus, StickyNote, Timer, Trash2, TrendingDown, TrendingUp, Unlink2, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ConfirmSheet from '../components/ConfirmSheet'
+import ExerciseDemoSheet from '../components/ExerciseDemoSheet'
 import ExercisePicker from '../components/ExercisePicker'
 import FinishScreen from '../components/FinishScreen'
 import PlateCalculator from '../components/PlateCalculator'
@@ -11,6 +12,7 @@ import Sheet from '../components/Sheet'
 import { useAuth } from '../contexts/AuthContext'
 import { useWorkout } from '../contexts/WorkoutContext'
 import { api } from '../lib/api'
+import { hasDemo } from '../lib/exerciseDemos'
 import { t, tc, tm } from '../lib/i18n'
 import { isRpeEnabled } from '../lib/prefs'
 import { toast } from '../lib/toast'
@@ -124,6 +126,7 @@ export default function ActiveWorkoutPage() {
   const [peekSessions, setPeekSessions] = useState<
     { workout_id: number; name: string; date: string; sets: { weight: number | null; reps: number | null; is_pr: boolean }[] }[] | null
   >(null)
+  const [demoName, setDemoFor] = useState<string | null>(null)
   const [workoutMenu, setWorkoutMenu] = useState(false)
   const [confirmFinish, setConfirmFinish] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
@@ -305,6 +308,15 @@ export default function ActiveWorkoutPage() {
                       )}
                     </button>
                     <div className="flex items-center gap-1">
+                      {hasDemo(we.name) && (
+                        <button
+                          onClick={() => setDemoFor(we.name)}
+                          className="touch-feedback rounded-full p-1.5 text-muted-foreground"
+                          aria-label={t('How to do {name}', { name: tc(we.name) })}
+                        >
+                          <CirclePlay size={17} />
+                        </button>
+                      )}
                       <span className="flex items-center gap-1 rounded-full bg-secondary px-2 py-1 text-xs font-medium text-muted-foreground">
                         <Timer size={12} />
                         {restLabel(we.rest_seconds ?? user?.default_rest_seconds ?? 120)}
@@ -722,6 +734,12 @@ export default function ActiveWorkoutPage() {
           </div>
         )}
       </Sheet>
+
+      <ExerciseDemoSheet
+        name={demoName ?? ''}
+        open={demoName != null}
+        onClose={() => setDemoFor(null)}
+      />
 
       <PlateCalculator
         key={plateExercise?.id ?? 'closed'}

@@ -1,7 +1,8 @@
-import { ChevronLeft, Pencil, Trash2, Trophy } from 'lucide-react'
+import { ChevronLeft, CirclePlay, Pencil, Trash2, Trophy } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
+import ExerciseDemoSheet from '../components/ExerciseDemoSheet'
 import ExerciseForm, { type ExerciseFields } from '../components/ExerciseForm'
 import Skeleton from '../components/Skeleton'
 import Sheet from '../components/Sheet'
@@ -22,6 +23,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { api } from '../lib/api'
 import type { MuscleRegion } from '../lib/bodyPaths'
 import { formatRelativeDate, formatSetWeight, formatShortDate, formatVolume, parseUTC } from '../lib/format'
+import { hasDemo } from '../lib/exerciseDemos'
 import { t, tc, tm } from '../lib/i18n'
 import { musclesFor } from '../lib/muscles'
 import { toast } from '../lib/toast'
@@ -82,6 +84,7 @@ export default function ExerciseDetailPage() {
   const [stats, setStats] = useState<ExerciseStats | null>(null)
   const [metric, setMetric] = useState<Metric>('best_1rm')
   const [editing, setEditing] = useState(false)
+  const [demoOpen, setDemoOpen] = useState(false)
   const [includeFamily, setIncludeFamily] = useState(false)
   const [range, setRange] = useState<'3m' | '1y' | 'all'>('all')
   const [error, setError] = useState('')
@@ -114,6 +117,12 @@ export default function ExerciseDetailPage() {
   }
 
   const { exercise, variations, records, chart, history } = stats
+  // A variant with no demo of its own borrows the family root's — the
+  // variations list carries the whole family, root included.
+  const baseName =
+    exercise.variant_of_id != null
+      ? (variations.find((v) => v.id === exercise.variant_of_id)?.name ?? null)
+      : null
 
   const saveExercise = async (fields: ExerciseFields) => {
     setError('')
@@ -208,6 +217,15 @@ export default function ExerciseDetailPage() {
             {exercise.is_custom && ` · ${t('Custom')}`}
           </p>
         </div>
+        {hasDemo(exercise.name, baseName) && (
+          <button
+            onClick={() => setDemoOpen(true)}
+            className="touch-feedback rounded-full p-2 text-muted-foreground"
+            aria-label={t('How to do {name}', { name: tc(exercise.name) })}
+          >
+            <CirclePlay size={19} />
+          </button>
+        )}
         {exercise.is_custom && (
           <button
             onClick={() => setEditing(true)}
@@ -218,6 +236,13 @@ export default function ExerciseDetailPage() {
           </button>
         )}
       </header>
+
+      <ExerciseDemoSheet
+        name={exercise.name}
+        variantOfName={baseName}
+        open={demoOpen}
+        onClose={() => setDemoOpen(false)}
+      />
 
       <textarea
         key={`note-${exercise.id}`}

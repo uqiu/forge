@@ -108,3 +108,19 @@ forge/
     ├── contexts/     # AuthContext, WorkoutContext
     └── lib/          # api, timer (rest timer engine), theme, format, types
 ```
+
+## Credits
+
+Movement demonstrations in `frontend/public/exercise-demos/` are vendored from
+[workout-guide](https://github.com/bryllim/workout-guide) — pose artwork by
+[Everkinetic](https://github.com/everkinetic/data), expanded with animation
+frames by [Bryl Lim](https://bryllim.com) — and are used unmodified under
+[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). Per-file
+provenance is recorded in `exercise-demos/ATTRIBUTION.json`, and the credit is
+shown in the app beside every demo. Only the exercises listed in
+`frontend/src/lib/exerciseDemos.ts` have one; the button is hidden for the rest
+rather than guessing at a match.
+
+Anatomy paths in `frontend/src/lib/bodyPaths.ts` come from
+[react-native-body-highlighter](https://github.com/HichamELBSI/react-native-body-highlighter)
+(MIT).

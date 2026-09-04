@@ -488,6 +488,17 @@ export const ZH: Record<string, string> = {
   'No sets logged yet': '还没有记录过组',
   'Records and progress will appear once you train this exercise.':
     '练过这个动作之后，纪录和进展会出现在这里。',
+  // ── Movement demonstrations ──────────────────────────────────────────────
+  'How to do {name}': '{name} 怎么做',
+  '{name} — movement demonstration': '{name} —— 动作示范',
+  Play: '播放',
+  Pause: '暂停',
+  'Frame {n}': '第 {n} 帧',
+  'Showing {name} — the movement this variant is based on':
+    '显示的是 {name} —— 这个变式所基于的动作',
+  'Artwork by': '插图作者',
+  and: '与',
+
   // How many implements load the movement — display only
   'load|single': '单只',
   'load|pair': '双只',
