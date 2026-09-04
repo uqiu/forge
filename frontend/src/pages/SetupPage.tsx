@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../lib/api'
+import { t, tm } from '../lib/i18n'
 
 export default function SetupPage() {
   const { setup } = useAuth()
@@ -46,16 +47,16 @@ export default function SetupPage() {
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
             <Flame size={34} />
           </div>
-          <h1 className="text-3xl">Welcome to Forge</h1>
+          <h1 className="text-3xl">{t('Welcome to Forge')}</h1>
           <p className="text-center text-sm text-muted-foreground">
-            Create the admin account for this instance
+            {t('Create the admin account for this instance')}
           </p>
         </div>
         <div className="flex flex-col gap-3">
           <input
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="Username"
+            placeholder={t('Username')}
             autoCapitalize="none"
             autoCorrect="off"
             className="h-12 rounded-lg border border-input bg-card px-4 text-base outline-none focus:ring-2 focus:ring-ring"
@@ -64,23 +65,23 @@ export default function SetupPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password (min 8 characters)"
+            placeholder={t('Password (min 8 characters)')}
             className="h-12 rounded-lg border border-input bg-card px-4 text-base outline-none focus:ring-2 focus:ring-ring"
           />
           <input
             type="password"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
-            placeholder="Confirm password"
+            placeholder={t('Confirm password')}
             className="h-12 rounded-lg border border-input bg-card px-4 text-base outline-none focus:ring-2 focus:ring-ring"
           />
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && <p className="text-sm text-destructive">{tm(error)}</p>}
           <button
             type="submit"
             disabled={busy || !username || password.length < 8}
             className="touch-feedback h-12 rounded-lg bg-primary text-base font-semibold text-primary-foreground disabled:opacity-50"
           >
-            {busy ? 'Creating…' : 'Create account'}
+            {busy ? t('Creating…') : t('Create account')}
           </button>
         </div>
       </form>
