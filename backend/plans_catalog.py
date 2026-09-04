@@ -104,6 +104,48 @@ PLANS = [
         ],
     },
     {
+        "key": "w-a",
+        "name": "w-a计划",
+        "description": (
+            "哑铃为主的 A 日：下肢 + 水平推 + 垂直拉。与 w-b计划 交替进行。"
+        ),
+        "routines": [
+            {
+                "name": "w-a计划",
+                "exercises": [
+                    ("Goblet Squat", 4, 120),
+                    ("Dumbbell Bench Press", 4, 120),
+                    ("Pull-Up", 3, 120),
+                    ("Dumbbell Romanian Deadlift", 3, 120),
+                    ("Incline Dumbbell Press", 3, 90),
+                    ("Bicep Curl", 3, 60),
+                ],
+            },
+        ],
+    },
+    {
+        "key": "w-b",
+        "name": "w-b计划",
+        "description": (
+            "哑铃为主的 B 日：垂直推 + 水平拉 + 单腿，收尾练三角肌后束、"
+            "三头与核心。与 w-a计划 交替进行。"
+        ),
+        "routines": [
+            {
+                "name": "w-b计划",
+                "exercises": [
+                    ("Seated Dumbbell Press", 4, 120),
+                    ("Dumbbell Row", 4, 90),
+                    ("Bulgarian Split Squat", 3, 120),
+                    ("Rear Delt Fly", 3, 60),
+                    ("Lateral Raise", 3, 60),
+                    ("Tricep Extension", 3, 60),
+                    ("Hanging Knee Raise", 3, 60),
+                ],
+            },
+        ],
+    },
+    {
         "key": "full-body",
         "name": "Full Body 3×",
         "description": (
