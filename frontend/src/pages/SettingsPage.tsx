@@ -857,6 +857,39 @@ export default function SettingsPage() {
                 {u.is_admin && (
                   <span className="ml-2 text-xs font-semibold text-primary">{t('admin')}</span>
                 )}
+              </span>
+              {u.id !== user.id && (
+                <span className="flex items-center">
+                  <button
+                    onClick={() => {
+                      setResetTarget(u)
+                      setResetPassword('')
+                      setError('')
+                    }}
+                    className="touch-feedback rounded-full p-2 text-muted-foreground"
+                    aria-label={t('Reset password for {name}', { name: u.username })}
+                  >
+                    <KeyRound size={16} />
+                  </button>
+                  <button
+                    onClick={() => setDeleteUserTarget(u)}
+                    className="touch-feedback rounded-full p-2 text-muted-foreground"
+                    aria-label={t('Delete {name}', { name: u.username })}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </span>
+              )}
+            </div>
+          ))}
+          <button
+            onClick={() => setAddUserOpen(true)}
+            className="touch-feedback flex min-h-12 items-center gap-3 px-4 py-2.5 text-left font-medium text-primary hover:bg-secondary"
+          >
+            <UserPlus size={18} /> {t('Add user')}
+          </button>
+        </Section>
+      )}
 
       <Section title={t('Account')}>
         {ssoConfig?.enabled && (
@@ -898,39 +931,6 @@ export default function SettingsPage() {
           <LogOut size={18} /> {t('Sign out')}
         </button>
       </Section>
-              </span>
-              {u.id !== user.id && (
-                <span className="flex items-center">
-                  <button
-                    onClick={() => {
-                      setResetTarget(u)
-                      setResetPassword('')
-                      setError('')
-                    }}
-                    className="touch-feedback rounded-full p-2 text-muted-foreground"
-                    aria-label={t('Reset password for {name}', { name: u.username })}
-                  >
-                    <KeyRound size={16} />
-                  </button>
-                  <button
-                    onClick={() => setDeleteUserTarget(u)}
-                    className="touch-feedback rounded-full p-2 text-muted-foreground"
-                    aria-label={t('Delete {name}', { name: u.username })}
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </span>
-              )}
-            </div>
-          ))}
-          <button
-            onClick={() => setAddUserOpen(true)}
-            className="touch-feedback flex min-h-12 items-center gap-3 px-4 py-2.5 text-left font-medium text-primary hover:bg-secondary"
-          >
-            <UserPlus size={18} /> {t('Add user')}
-          </button>
-        </Section>
-      )}
 
       <Sheet
         open={resetTarget != null}
