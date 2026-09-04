@@ -1,6 +1,7 @@
 /** Rest timer singleton — survives reloads via localStorage, ticks subscribers,
  *  and fires sound + vibration + notification when time is up. */
 import { useEffect, useState } from 'react'
+import { t } from './i18n'
 import { syncRestPush } from './push'
 
 const TIMER_KEY = 'forge_rest_timer'
@@ -89,7 +90,7 @@ function fireDone() {
   beep()
   if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
     try {
-      new Notification('Rest over', { body: 'Time for your next set.' })
+      new Notification(t('Rest over'), { body: t('Time for your next set.') })
     } catch {
       // notification construction can throw on some platforms
     }
