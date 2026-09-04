@@ -29,10 +29,9 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
-          # amd64 only: the deployment target (Unraid) is x86. The arm64 leg
-          # ran under QEMU and turned cold-cache builds into 45+ minute
-          # ordeals — re-add it here if an ARM host ever joins the fleet.
-          platforms: linux/amd64
+          # arm64 only: the deployment target runs Armbian. Keeping this to
+          # one architecture avoids publishing an unused amd64 image.
+          platforms: linux/arm64
           push: true
           build-args: |
             VERSION=${{ inputs.tag || github.sha }}

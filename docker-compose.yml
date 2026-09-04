@@ -1,5 +1,4 @@
-# Run Forge from the published container image. Works on any host
-# (Linux / macOS / Windows) for amd64 and arm64.
+# Run Forge from the published arm64 container image (for the Armbian server).
 #
 #   docker compose pull && docker compose up -d
 #
