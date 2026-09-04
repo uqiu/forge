@@ -496,8 +496,6 @@ export const ZH: Record<string, string> = {
   'Frame {n}': '第 {n} 帧',
   'Showing {name} — the movement this variant is based on':
     '显示的是 {name} —— 这个变式所基于的动作',
-  'Artwork by': '插图作者',
-  and: '与',
 
   // How many implements load the movement — display only
   'load|single': '单只',

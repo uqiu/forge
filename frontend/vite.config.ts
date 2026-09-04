@@ -31,7 +31,7 @@ export default defineConfig({
       },
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,png}'],
-        // Movement demos are ~780 KB of vector art nobody has asked for yet.
+        // Movement demos are loaded only when requested.
         // Precaching them would nearly double the install payload for every
         // user; the service worker caches each one the first time it's opened
         // instead, which is enough to keep them available offline afterwards.

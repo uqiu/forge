@@ -11,7 +11,6 @@ const SEED = join(HERE, '../../backend/seed.py')
 const MAP = join(HERE, '../src/lib/exerciseDemos.ts')
 const ASSETS = join(HERE, '../public/exercise-demos')
 
-const FRAMES = 3
 const src = readFileSync(MAP, 'utf8')
 
 // Entries look like:  'Goblet Squat': 'goblet-squat',
@@ -32,7 +31,7 @@ const catalog = new Set(
 const problems = []
 for (const [name, slug] of pairs) {
   if (!catalog.has(name)) problems.push(`"${name}" is not a seed exercise`)
-  for (let i = 1; i <= FRAMES; i++) {
+  for (let i = 1; i <= 2; i++) {
     const f = join(ASSETS, slug, `frame-${i}.svg`)
     if (!existsSync(f)) problems.push(`"${name}" → ${slug}/frame-${i}.svg missing`)
   }
@@ -46,13 +45,8 @@ for (const slug of onDisk) {
   if (!mapped.has(slug)) problems.push(`${slug}/ is vendored but nothing maps to it`)
 }
 
-if (!existsSync(join(ASSETS, 'ATTRIBUTION.json'))) {
-  problems.push('ATTRIBUTION.json is missing — the art is CC BY-SA, credit ships with it')
-}
-
 console.log(`mapped exercises: ${pairs.length}`)
-console.log(`vendored slugs:   ${onDisk.length}`)
-console.log(`frames:           ${onDisk.length * FRAMES}`)
+console.log(`training figures: ${onDisk.length}`)
 
 if (problems.length) {
   console.error(`\n${problems.length} problem(s):`)

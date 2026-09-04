@@ -10,11 +10,10 @@
  *  worse than no demo at all. That is also why coverage is deliberately
  *  partial — the button simply doesn't appear for an exercise that isn't here.
  *
- *  Artwork: github.com/bryllim/workout-guide, CC BY-SA 4.0, vendored into
- *  public/exercise-demos (see ATTRIBUTION.json there). Frames are numbered
- *  from 1 and meant to be played in order as a loop. */
+ *  Artwork is derived from the user's training-figures-a3.html reference.
+ *  The source SVGs preserve the start/end-position detail from that figure. */
 
-/** Slug of the vendored asset directory, per canonical exercise name. */
+/** Slug of the imported training figure, per canonical exercise name. */
 const DEMOS: Record<string, string> = {
   // ── w-a计划 ──────────────────────────────────────────────────────────────
   'Goblet Squat': 'goblet-squat',
@@ -36,8 +35,6 @@ const DEMOS: Record<string, string> = {
   'Hanging Knee Raise': 'hanging-knee-raise',
 }
 
-const FRAMES = 3
-
 export interface ExerciseDemo {
   /** Frame image URLs, in playback order. */
   frames: string[]
@@ -54,7 +51,7 @@ export function demoFor(name: string, variantOfName?: string | null): ExerciseDe
   const slug = DEMOS[name] ?? (variantOfName ? DEMOS[variantOfName] : undefined)
   if (!slug) return null
   return {
-    frames: Array.from({ length: FRAMES }, (_, i) => `/exercise-demos/${slug}/frame-${i + 1}.svg`),
+    frames: [`/exercise-demos/${slug}/frame-1.svg`, `/exercise-demos/${slug}/frame-2.svg`],
   }
 }
 

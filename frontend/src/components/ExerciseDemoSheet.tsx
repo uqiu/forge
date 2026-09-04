@@ -4,18 +4,9 @@ import Sheet from './Sheet'
 import { demoFor } from '../lib/exerciseDemos'
 import { t, tc } from '../lib/i18n'
 
-const FRAME_MS = 700
+const FRAME_MS = 850
 
-/** How the movement looks: the vendored frames played as a loop.
- *
- *  All frames are rendered at once and revealed by opacity rather than swapped
- *  by src — swapping would flash white on the first pass through, before the
- *  next file is in the browser cache. Autoplay yields to
- *  prefers-reduced-motion, which leaves a still first frame and the play
- *  button.
- *
- *  The attribution line is not decoration: the artwork is CC BY-SA 4.0, which
- *  requires crediting the author and naming the licence wherever it's shown. */
+/** SVG start/end positions from the user's training-figures reference sheet. */
 export default function ExerciseDemoSheet({
   name,
   variantOfName,
@@ -53,11 +44,7 @@ export default function ExerciseDemoSheet({
             <img
               key={src}
               src={src}
-              alt={
-                i === 0
-                  ? t('{name} — movement demonstration', { name: tc(name) })
-                  : ''
-              }
+              alt={i === 0 ? t('{name} — movement demonstration', { name: tc(name) }) : ''}
               aria-hidden={i !== 0}
               draggable={false}
               className="absolute inset-0 h-full w-full object-contain transition-opacity duration-150"
@@ -83,11 +70,7 @@ export default function ExerciseDemoSheet({
                   setFrame(i)
                 }}
                 aria-label={t('Frame {n}', { n: i + 1 })}
-                className={
-                  i === frame
-                    ? 'h-2 w-6 rounded-full bg-primary'
-                    : 'h-2 w-2 rounded-full bg-muted-foreground/30'
-                }
+                className={i === frame ? 'h-2 w-6 rounded-full bg-primary' : 'h-2 w-2 rounded-full bg-muted-foreground/30'}
               />
             ))}
           </div>
@@ -100,31 +83,6 @@ export default function ExerciseDemoSheet({
             })}
           </p>
         )}
-
-        <p className="text-[11px] leading-relaxed text-muted-foreground/80">
-          {t('Artwork by')}{' '}
-          <a
-            href="https://github.com/everkinetic/data"
-            target="_blank"
-            rel="noreferrer"
-            className="underline"
-          >
-            Everkinetic
-          </a>{' '}
-          {t('and')}{' '}
-          <a href="https://bryllim.com" target="_blank" rel="noreferrer" className="underline">
-            Bryl Lim
-          </a>
-          {' · '}
-          <a
-            href="https://creativecommons.org/licenses/by-sa/4.0/"
-            target="_blank"
-            rel="noreferrer"
-            className="underline"
-          >
-            CC BY-SA 4.0
-          </a>
-        </p>
       </div>
     </Sheet>
   )
