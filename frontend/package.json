@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "test:timer": "node --test scripts/test-timer.mjs",
     "preview": "vite preview",
     "check:aliases": "node scripts/check-aliases.mjs",
     "check:demos": "node scripts/check-demos.mjs"

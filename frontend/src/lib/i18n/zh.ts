@@ -718,6 +718,8 @@ export const ZH: Record<string, string> = {
   'Notifications are blocked for Forge in system settings': '系统设置里已禁止 Forge 发送通知',
   'Could not set up push notifications': '推送通知设置失败',
   'Needs HTTPS': '需要 HTTPS',
+  'Push unavailable in this browser': '当前浏览器无法使用推送',
+  'On iPhone, use HTTPS, add Forge to the Home Screen, open it there, and enable notifications.': 'iPhone 锁屏提醒需要 HTTPS。请将 Forge 添加到主屏幕，从图标打开后开启通知。',
   'Track RPE': '记录 RPE',
   'Weekly goal': '每周目标',
   'Lower goal': '降低目标',

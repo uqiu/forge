@@ -481,7 +481,10 @@ export default function SettingsPage() {
             className="w-32"
           />
         </Row>
-        <Row label={t('Rest alerts (lock screen)')}>
+        <Row
+          label={t('Rest alerts (lock screen)')}
+          hint={t('On iPhone, use HTTPS, add Forge to the Home Screen, open it there, and enable notifications.')}
+        >
           {pushSupported() ? (
             <button
               onClick={async () => {
@@ -509,7 +512,9 @@ export default function SettingsPage() {
               {pushBusy ? t('Working…') : restPush ? t('On') : t('Enable')}
             </button>
           ) : (
-            <span className="text-sm text-muted-foreground">{t('Needs HTTPS')}</span>
+            <span className="text-sm text-muted-foreground">
+              {t(window.isSecureContext ? 'Push unavailable in this browser' : 'Needs HTTPS')}
+            </span>
           )}
         </Row>
         <Row label={t('Track RPE')}>

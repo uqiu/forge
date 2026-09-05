@@ -19,7 +19,7 @@ import { toast } from '../lib/toast'
 import { formatClock, formatRelativeDate, formatSetWeight, formatVolume, parseUTC, restLabel } from '../lib/format'
 import { useOutboxSize } from '../lib/outbox'
 import { useSyncQueueSize } from '../lib/syncQueue'
-import { restTimer } from '../lib/timer'
+import { prepareTimerAudio, restTimer } from '../lib/timer'
 import { moveItem, useDragReorder } from '../lib/useDragReorder'
 import type { FinishResult, SetEntry, WorkoutExercise } from '../lib/types'
 import { cn } from '../lib/utils'
@@ -190,6 +190,7 @@ export default function ActiveWorkoutPage() {
   }
 
   const completeSet = async (we: WorkoutExercise, setId: number, weight: number, reps: number) => {
+    prepareTimerAudio()
     await updateSet(setId, { weight, reps, is_completed: true })
     // Inside a superset, rest comes after the group's last exercise
     if (we.superset && !we.superset_last) return

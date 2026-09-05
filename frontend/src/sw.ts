@@ -38,9 +38,8 @@ self.addEventListener('push', (event) => {
 
   event.waitUntil(
     (async () => {
-      // If the app is open and focused, the in-app timer bar already handles it
-      const clients = await self.clients.matchAll({ type: 'window' })
-      if (clients.some((c) => c.focused)) return
+      // Every push must display a notification, including while focused.
+      // Safari can revoke push permission if a push is silently consumed.
       // No tag on purpose: replacing a same-tag notification is SILENT per
       // spec (no sound/banner), and Safari doesn't support renotify. Close
       // stale ones manually instead, then show a fresh alerting notification.

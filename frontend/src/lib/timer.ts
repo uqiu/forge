@@ -13,6 +13,26 @@ export function isTimerSoundEnabled(): boolean {
 
 export function setTimerSoundEnabled(on: boolean) {
   localStorage.setItem(SOUND_KEY, on ? 'on' : 'off')
+  if (on) prepareTimerAudio()
+}
+
+let audioContext: AudioContext | null = null
+
+/** Call synchronously from a user gesture, before any async save. iOS will
+ *  otherwise leave the context suspended when the countdown finishes. */
+export function prepareTimerAudio() {
+  if (!isTimerSoundEnabled()) return
+  try {
+    if (!audioContext || audioContext.state === 'closed') {
+      const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      audioContext = new Ctx()
+    }
+    if (audioContext.state !== 'running') {
+      void audioContext.resume().catch(() => {})
+    }
+  } catch {
+    // Audio is optional; unsupported browsers must still start the timer.
+  }
 }
 
 export interface TimerState {
@@ -97,11 +117,17 @@ function fireDone() {
   }
 }
 
-function beep() {
+async function beep() {
   if (!isTimerSoundEnabled()) return
+  const finishedAt = lastNaturalEnd
   try {
-    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
-    const ctx = new Ctx()
+    const ctx = audioContext
+    if (!ctx || ctx.state === 'closed') return
+    if (ctx.state !== 'running') await ctx.resume()
+    // A blocked resume may resolve only on a much later gesture. Do not play
+    // an old alarm, or one the user muted while it was waiting.
+    if (ctx.state !== 'running' || !isTimerSoundEnabled() ||
+        lastNaturalEnd !== finishedAt || state || Date.now() - finishedAt > 5000) return
     const at = (t: number, freq: number) => {
       const osc = ctx.createOscillator()
       const gain = ctx.createGain()
@@ -111,13 +137,16 @@ function beep() {
       gain.gain.exponentialRampToValueAtTime(0.35, ctx.currentTime + t + 0.02)
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.28)
       osc.connect(gain).connect(ctx.destination)
+      osc.onended = () => {
+        osc.disconnect()
+        gain.disconnect()
+      }
       osc.start(ctx.currentTime + t)
       osc.stop(ctx.currentTime + t + 0.3)
     }
     at(0, 880)
     at(0.35, 880)
     at(0.7, 1175)
-    setTimeout(() => ctx.close(), 1500)
   } catch {
     // audio unsupported
   }
@@ -126,6 +155,7 @@ function beep() {
 export const restTimer = {
   start(seconds: number) {
     if (seconds <= 0) return
+    prepareTimerAudio()
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission().catch(() => {})
     }
@@ -137,6 +167,7 @@ export const restTimer = {
   },
   adjust(deltaSeconds: number) {
     if (!state) return
+    prepareTimerAudio()
     const remaining = Math.max(0, state.endsAt - Date.now()) / 1000
     const next = Math.max(1, remaining + deltaSeconds)
     state = { endsAt: Date.now() + next * 1000, total: Math.max(state.total + deltaSeconds, next) }
@@ -165,6 +196,18 @@ export const restTimer = {
 }
 
 load()
+
+// A restored timer also needs a gesture after reload; keep retrying after
+// interruptions instead of treating the first unlock as permanent.
+document.addEventListener('click', () => {
+  if (state) prepareTimerAudio()
+})
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && state) {
+    prepareTimerAudio()
+    tick()
+  }
+})
 
 export function useRestTimer() {
   const [, setVersion] = useState(0)
