@@ -1,0 +1,43 @@
+# Tests, publishes the Docker image to this repository's GHCR namespace, and
+# rolls it out to the home server — on every main branch update. A manual run
+# can additionally create a versioned tag, and is the way to redeploy without a
+# code change (a rollback, or a retry after a failed deploy).
+#
+# Everything after the tests lives in uqiu/cicd, shared with every other
+# project that deploys to the same box. What's left here is what's specific to
+# Forge: its tests, where it lives on the server, and how to tell it's alive.
+name: Publish and deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Additional image tag (e.g. v0.1.0). "latest" is always pushed.
+        required: false
+
+concurrency:
+  # Back-to-back merges should deploy the last one, not race each other. Never
+  # cancel a run in progress: a half-finished deploy is worse than a slow one.
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  test:
+    uses: ./.github/workflows/ci.yml
+
+  ship:
+    needs: test
+    uses: uqiu/cicd/.github/workflows/ship.yml@main
+    with:
+      # Absolute: `dir` lands in a double-quoted `cd` on the server, where a
+      # leading `~` isn't expanded. The fallback only matters if the repository
+      # variable is ever removed.
+      dir: ${{ vars.DEPLOY_DIR || '/root/app/forge' }}
+      health-url: http://127.0.0.1:8081/api/health
+      # Public repository, so GitHub's free arm64 runner builds the image
+      # natively instead of emulating aarch64 on x86 under QEMU.
+      runner: ubuntu-24.04-arm
+      tag: ${{ inputs.tag }}
+    secrets: inherit
