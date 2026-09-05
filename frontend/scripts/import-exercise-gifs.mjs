@@ -6,7 +6,7 @@
  *
  * Each source GIF becomes two files: an animated WebP for the loop, and a
  * still WebP of its first frame for the paused state. The originals are
- * 200-400 KB apiece, which is a lot to ship thirteen times over for artwork
+ * 200-400 KB apiece, which is a lot to ship a hundred times over for artwork
  * that plays in a sheet; the animated WebP is a quarter of that at a quality
  * where the line art is indistinguishable.
  *
@@ -24,26 +24,154 @@ const OUTPUT = new URL('../public/exercise-demos/', import.meta.url)
 /** Local slug → the exercise's id in the source database.
  *
  *  Every pairing was checked by eye against the source GIF, not just its name:
- *  the database has a dozen near-namesakes per movement, and a plausible-looking
- *  wrong demo teaches the wrong lift. Notable calls:
- *    - the source has no "bulgarian split squat"; its single-leg split squat is
- *      the same movement, rear foot on the bench
- *    - "hanging leg raise" there is the bent-knee raise to parallel, which is
- *      our hanging knee raise ("hanging leg hip raise" adds a pelvic curl) */
+ *  the database has a dozen near-namesakes per movement, its names don't always
+ *  describe the artwork, and a plausible-looking wrong demo teaches the wrong
+ *  lift. Cases where the name would have misled:
+ *    - "lever shoulder press" is a two-handed landmine press, not a machine one;
+ *      the seated machine press is under its v-2 and v-3 suffixes
+ *    - "cable rear delt row with rope" is the face pull
+ *    - "cable judo flip" is the woodchop; "cable standing lift" goes the other
+ *      way, low to high
+ *    - no "bulgarian split squat" exists; its single-leg split squat is the same
+ *      movement, rear foot on the bench
+ *    - "hanging leg raise" is the bent-knee raise to parallel, i.e. our hanging
+ *      knee raise ("hanging leg hip raise" adds a pelvic curl)
+ *
+ *  Exercises the source has no honest match for are simply absent from
+ *  exerciseDemos.ts — the button hides rather than showing a near-miss. */
 const FIGURES = {
-  'goblet-squat': 'quads/dumbbell-goblet-squat',
+  'bench-press': 'pectorals/barbell-bench-press',
+  'incline-bench-press': 'pectorals/barbell-incline-bench-press',
+  'decline-bench-press': 'pectorals/barbell-decline-bench-press',
+  'smith-machine-bench-press': 'pectorals/smith-bench-press',
+  'smith-machine-incline-press': 'pectorals/smith-incline-bench-press',
+  'smith-machine-decline-press': 'pectorals/smith-decline-bench-press',
   'dumbbell-bench-press': 'pectorals/dumbbell-bench-press',
-  'pull-up': 'lats/pull-up',
-  'dumbbell-romanian-deadlift': 'glutes/dumbbell-romanian-deadlift',
   'incline-dumbbell-press': 'pectorals/dumbbell-incline-bench-press',
-  'bicep-curl': 'biceps/dumbbell-biceps-curl',
+  'decline-dumbbell-press': 'pectorals/dumbbell-decline-bench-press',
+  'machine-chest-press': 'pectorals/lever-chest-press',
+  'incline-machine-chest-press': 'pectorals/lever-incline-chest-press',
+  'decline-machine-chest-press': 'pectorals/lever-decline-chest-press',
+  'chest-fly': 'pectorals/dumbbell-fly',
+  'incline-chest-fly': 'pectorals/dumbbell-incline-fly',
+  'cable-fly': 'pectorals/cable-middle-fly',
+  'incline-cable-fly': 'pectorals/cable-incline-fly',
+  'pec-deck': 'pectorals/lever-seated-fly',
+  'push-up': 'pectorals/push-up',
+  'dip': 'pectorals/chest-dip',
+  'incline-push-up': 'pectorals/incline-push-up',
+  'decline-push-up': 'pectorals/decline-push-up',
+  'deadlift': 'glutes/barbell-deadlift',
+  'rack-pull': 'glutes/barbell-rack-pull',
+  'barbell-row': 'upper-back/barbell-bent-over-row',
+  'pendlay-row': 'upper-back/barbell-pendlay-row',
+  'smith-machine-row': 'upper-back/smith-bent-over-row',
+  'dumbbell-row': 'upper-back/dumbbell-one-arm-bent-over-row',
+  't-bar-row': 'upper-back/lever-t-bar-row',
+  'chest-supported-row': 'upper-back/lever-seated-row',
+  'chest-supported-dumbbell-row': 'upper-back/dumbbell-incline-row',
+  'machine-row': 'upper-back/lever-narrow-grip-seated-row',
+  'plate-loaded-row': 'upper-back/lever-unilateral-row',
+  'seated-cable-row': 'upper-back/cable-seated-row',
+  'lat-pulldown': 'lats/cable-pulldown',
+  'machine-lat-pulldown': 'lats/lever-front-pulldown',
+  'straight-arm-pulldown': 'lats/cable-straight-arm-pulldown',
+  'pull-up': 'lats/pull-up',
+  'assisted-pull-up': 'lats/lever-assisted-chin-up',
+  'inverted-row': 'upper-back/inverted-row',
+  'pullover': 'pectorals/dumbbell-pullover',
+  'cable-pullover': 'lats/cable-lying-extension-pullover-with-rope-attachment',
+  'back-extension': 'spine/hyperextension',
+  'good-morning': 'hamstrings/barbell-good-morning',
+  'overhead-press': 'delts/barbell-standing-close-grip-military-press',
+  'seated-barbell-press': 'delts/barbell-seated-overhead-press',
+  'smith-machine-shoulder-press': 'delts/smith-shoulder-press',
+  'landmine-press': 'delts/lever-shoulder-press',
   'seated-dumbbell-press': 'delts/dumbbell-seated-shoulder-press',
-  'one-arm-dumbbell-row': 'upper-back/dumbbell-one-arm-bent-over-row',
-  'bulgarian-split-squat': 'quads/dumbbell-single-leg-split-squat',
-  'rear-delt-fly': 'delts/dumbbell-reverse-fly',
+  'machine-shoulder-press': 'delts/lever-shoulder-press-v-3',
+  'plate-loaded-shoulder-press': 'delts/lever-shoulder-press-v-2',
   'lateral-raise': 'delts/dumbbell-lateral-raise',
-  'dumbbell-skull-crusher': 'triceps/dumbbell-lying-triceps-extension',
-  'hanging-knee-raise': 'abs/hanging-leg-raise',
+  'cable-lateral-raise': 'delts/cable-lateral-raise',
+  'machine-lateral-raise': 'delts/lever-lateral-raise',
+  'front-raise': 'delts/dumbbell-front-raise',
+  'cable-front-raise': 'delts/cable-front-raise',
+  'rear-delt-fly': 'delts/dumbbell-rear-fly',
+  'cable-reverse-fly': 'delts/cable-standing-cross-over-high-reverse-fly',
+  'reverse-pec-deck': 'delts/lever-seated-reverse-fly',
+  'face-pull': 'delts/cable-rear-delt-row-with-rope',
+  'barbell-shrug': 'traps/barbell-shrug',
+  'dumbbell-shrug': 'traps/dumbbell-shrug',
+  'upright-row': 'delts/barbell-upright-row',
+  'cable-upright-row': 'delts/cable-upright-row',
+  'barbell-curl': 'biceps/barbell-curl',
+  'ez-bar-curl': 'biceps/ez-barbell-curl',
+  'bicep-curl': 'biceps/dumbbell-biceps-curl',
+  'incline-dumbbell-curl': 'biceps/dumbbell-incline-curl',
+  'concentration-curl': 'biceps/dumbbell-concentration-curl',
+  'spider-curl': 'biceps/dumbbell-prone-incline-curl',
+  'preacher-curl': 'biceps/barbell-preacher-curl',
+  'dumbbell-preacher-curl': 'biceps/dumbbell-preacher-curl',
+  'machine-preacher-curl': 'biceps/lever-preacher-curl',
+  'machine-bicep-curl': 'biceps/lever-bicep-curl',
+  'cable-curl': 'biceps/cable-curl',
+  'wrist-curl': 'forearms/dumbbell-over-bench-wrist-curl',
+  'skull-crusher': 'triceps/barbell-lying-triceps-extension-skull-crusher',
+  'tricep-pushdown': 'triceps/cable-pushdown',
+  'overhead-tricep-extension': 'triceps/dumbbell-seated-triceps-extension',
+  'overhead-cable-extension': 'triceps/cable-rope-high-pulley-overhead-tricep-extension',
+  'tricep-extension': 'triceps/dumbbell-lying-triceps-extension',
+  'machine-tricep-extension': 'triceps/lever-triceps-extension',
+  'bench-dip': 'triceps/bench-dip-knees-bent',
+  'machine-dip': 'triceps/lever-seated-dip',
+  'sumo-deadlift': 'glutes/barbell-sumo-deadlift',
+  'trap-bar-deadlift': 'glutes/trap-bar-deadlift',
+  'back-squat': 'glutes/barbell-full-squat',
+  'front-squat': 'glutes/barbell-front-squat',
+  'zercher-squat': 'glutes/barbell-zercher-squat',
+  'smith-machine-squat': 'glutes/smith-squat',
+  'goblet-squat': 'quads/dumbbell-goblet-squat',
+  'pistol-squat': 'glutes/single-leg-squat-pistol-male',
+  'hack-squat': 'glutes/sled-hack-squat',
+  'leg-press': 'glutes/sled-45-leg-press',
+  'romanian-deadlift': 'glutes/barbell-romanian-deadlift',
+  'dumbbell-romanian-deadlift': 'glutes/dumbbell-romanian-deadlift',
+  'stiff-leg-deadlift': 'hamstrings/barbell-straight-leg-deadlift',
+  'single-leg-deadlift': 'glutes/dumbbell-single-leg-deadlift',
+  'glute-bridge': 'glutes/low-glute-bridge-on-floor',
+  'cable-kickback': 'glutes/cable-standing-hip-extension',
+  'bulgarian-split-squat': 'quads/dumbbell-single-leg-split-squat',
+  'walking-lunge': 'glutes/dumbbell-lunge',
+  'reverse-lunge': 'glutes/dumbbell-rear-lunge',
+  'barbell-lunge': 'glutes/barbell-lunge',
+  'static-lunge': 'glutes/forward-lunge-male',
+  'step-up': 'glutes/dumbbell-step-up',
+  'leg-extension': 'quads/lever-leg-extension',
+  'leg-curl': 'hamstrings/lever-lying-leg-curl',
+  'seated-leg-curl': 'hamstrings/lever-seated-leg-curl',
+  'glute-ham-raise': 'hamstrings/glute-ham-raise',
+  'nordic-hamstring-curl': 'hamstrings/self-assisted-inverse-leg-curl',
+  'hip-abduction': 'abductors/lever-seated-hip-abduction',
+  'hip-adduction': 'adductors/lever-seated-hip-adduction',
+  'calf-raise': 'calves/bodyweight-standing-calf-raise',
+  'standing-calf-raise': 'calves/lever-standing-calf-raise',
+  'seated-calf-raise': 'calves/lever-seated-calf-raise',
+  'calf-press': 'calves/lever-calf-press',
+  'barbell-bulgarian-split-squat': 'quads/barbell-single-leg-split-squat',
+  'plank': 'abs/weighted-front-plank',
+  'side-plank': 'abs/side-bridge-v-2',
+  'hanging-leg-raise': 'abs/hanging-leg-raise',
+  'cable-crunch': 'abs/cable-kneeling-crunch',
+  'machine-crunch': 'abs/lever-seated-crunch',
+  'cable-woodchop': 'abs/cable-judo-flip',
+  'russian-twist': 'abs/russian-twist',
+  'ab-wheel-rollout': 'abs/wheel-rollerout',
+  'weighted-sit-up': 'abs/sit-up-v-2',
+  'decline-sit-up': 'abs/decline-sit-up',
+  'dead-bug': 'abs/dead-bug',
+  'power-clean': 'hamstrings/power-clean',
+  'thruster': 'delts/barbell-thruster',
+  'kettlebell-swing': 'glutes/kettlebell-swing',
+  'farmers-walk': 'quads/farmers-walk',
 }
 
 const magick = (...args) => execFileSync('magick', args, { stdio: ['ignore', 'ignore', 'inherit'] })

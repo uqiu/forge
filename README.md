@@ -118,8 +118,10 @@ an animated WebP plus a still first frame and records its provenance in
 `exercise-demos/SOURCES.json`. That repository states it collected the artwork
 from the internet, does not hold the copyright, and grants no rights over it —
 so the GIFs belong to their original authors and carry no license for
-redistribution. Only the exercises listed in `frontend/src/lib/exerciseDemos.ts`
-have a demo; the button is hidden for the rest rather than guessing at a match.
+redistribution. 136 of the 146 catalog movements have a demo (variants inherit
+their parent's); the ten the source had no honest match for are absent from
+`frontend/src/lib/exerciseDemos.ts` and hide the button rather than showing a
+near-miss.
 
 Anatomy paths in `frontend/src/lib/bodyPaths.ts` come from
 [react-native-body-highlighter](https://github.com/HichamELBSI/react-native-body-highlighter)

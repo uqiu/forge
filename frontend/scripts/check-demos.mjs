@@ -13,11 +13,11 @@ const ASSETS = join(HERE, '../public/exercise-demos')
 
 const src = readFileSync(MAP, 'utf8')
 
-// Entries look like:  'Goblet Squat': 'goblet-squat',
-const pairs = [...src.matchAll(/^ {2}'((?:\\.|[^'\\])*)':\s*'([a-z0-9-]+)',/gm)].map((m) => [
-  m[1].replace(/\\(['\\])/g, '$1'),
-  m[2],
-])
+// Entries look like:  'Goblet Squat': 'goblet-squat',  — a one-word name needs
+// no quotes, so `Deadlift: 'deadlift',` is just as valid and must match too.
+const pairs = [
+  ...src.matchAll(/^ {2}(?:'((?:\\.|[^'\\])*)'|(\w+)):\s*'([a-z0-9-]+)',/gm),
+].map((m) => [(m[1] ?? m[2]).replace(/\\(['\\])/g, '$1'), m[3]])
 
 const GROUPS = 'Chest|Back|Shoulders|Arms|Legs|Core|Full Body'
 const catalog = new Set(

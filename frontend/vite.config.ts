@@ -31,10 +31,11 @@ export default defineConfig({
       },
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,png,wav}'],
-        // Movement demos are ~1.9 MB of animation nobody has asked for yet.
-        // Precaching them would dwarf the install payload for every user; the
-        // service worker caches each one the first time it's opened instead,
-        // which is enough to keep them available offline afterwards.
+        // Movement demos are ~21 MB of animation nobody has asked for yet —
+        // roughly 110 KB per exercise, and precaching them would dwarf the
+        // install payload for every user. The service worker caches each one
+        // the first time it's opened instead, which is enough to keep them
+        // available offline afterwards.
         globIgnores: ['**/exercise-demos/**'],
       },
     }),
