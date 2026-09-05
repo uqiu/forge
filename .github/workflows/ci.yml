@@ -1,9 +1,10 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
+  # release.yml calls this before it publishes, so a main push runs these once
+  # and the deploy waits on them — rather than testing and shipping in parallel.
+  workflow_call:
 
 jobs:
   frontend:

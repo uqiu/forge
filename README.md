@@ -109,6 +109,10 @@ forge/
     └── lib/          # api, timer (rest timer engine), theme, format, types
 ```
 
+Every push to `main` runs the tests, publishes an arm64 image to GHCR, and
+deploys it to the home server over Tailscale — see `docs/deploy.md`. The deploy
+half is a reusable workflow other projects can call.
+
 ## Credits
 
 Movement demonstrations in `frontend/public/exercise-demos/` are vendored from

@@ -1,6 +1,8 @@
-# Publishes the Docker image to this repository's GHCR namespace on every main
-# branch update. A manual run can additionally create a versioned tag.
-name: Publish Docker image
+# Tests, publishes the Docker image to this repository's GHCR namespace, and
+# rolls it out to the home server — on every main branch update. A manual run
+# can additionally create a versioned tag, and is the way to redeploy without a
+# code change (a rollback, or a retry after a failed deploy).
+name: Publish and deploy
 
 on:
   push:
@@ -11,8 +13,18 @@ on:
         description: Additional image tag (e.g. v0.1.0). "latest" is always pushed.
         required: false
 
+concurrency:
+  # Back-to-back merges should deploy the last one, not race each other. Never
+  # cancel a run in progress: a half-finished deploy is worse than a slow one.
+  group: deploy-production
+  cancel-in-progress: false
+
 jobs:
+  test:
+    uses: ./.github/workflows/ci.yml
+
   publish:
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -40,3 +52,13 @@ jobs:
             ${{ inputs.tag && format('ghcr.io/{0}:{1}', github.repository, inputs.tag) || '' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy:
+    needs: publish
+    # Same-repo call, so this always deploys with the workflow as it exists in
+    # the commit being shipped. Other repositories pin it: uqiu/forge/...@main
+    uses: ./.github/workflows/deploy-to-server.yml
+    with:
+      dir: ${{ vars.DEPLOY_DIR || '~/forge' }}
+      health-url: http://127.0.0.1:8081/api/health
+    secrets: inherit
