@@ -9,42 +9,38 @@ const compile = (text) => ts.transpileModule(text, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText
 
+// These mocks verify scheduling and cancellation, not iOS's physical audio
+// routing. Silent-switch behavior requires an iPhone test.
 function setup({ restored = false, supported = true } = {}) {
   let now = 10000
   let gesture = false
   let interval
-  const contexts = []
-  const tones = []
+  const players = []
+  const alarms = []
   const events = {}
+  const timeouts = new Map()
+  let timeoutId = 0
   const storage = new Map(restored ? [
     ['forge_rest_timer', JSON.stringify({ endsAt: 11000, total: 1 })],
   ] : [])
-  class AudioContext {
-    state = 'suspended'
+  class Audio {
+    src = ''
     currentTime = 0
-    destination = {}
-    constructor() { contexts.push(this) }
-    resume() {
-      if (!gesture) return Promise.reject(new Error('User gesture required'))
-      this.state = 'running'
+    unlocked = false
+    paused = true
+    pending = false
+    muted = false
+    constructor() { players.push(this) }
+    getAttribute(name) { return this[name] }
+    load() {}
+    play() {
+      if (gesture) this.unlocked = true
+      if (!this.unlocked) return Promise.reject(new Error('User gesture required'))
+      this.paused = false
+      if (this.src === 'alert.wav') alarms.push(this)
       return Promise.resolve()
     }
-    createOscillator() {
-      const ctx = this
-      return {
-        frequency: {},
-        connect(gain) { return gain },
-        disconnect() {},
-        start() { if (ctx.state === 'running') tones.push(this.frequency.value) },
-        stop() { this.onended?.() },
-      }
-    }
-    createGain() {
-      return {
-        gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} },
-        connect() {}, disconnect() {},
-      }
-    }
+    pause() { this.paused = true; this.pending = false }
   }
   const sandbox = {
     exports: {},
@@ -52,10 +48,12 @@ function setup({ restored = false, supported = true } = {}) {
       if (name === 'react') return { useEffect() {}, useState() {} }
       if (name === './i18n') return { t: (s) => s }
       if (name === './push') return { syncRestPush() {} }
+      if (name.endsWith('rest-alert.wav')) return { default: 'alert.wav' }
+      if (name.endsWith('rest-silence.wav')) return { default: 'silence.wav' }
       throw new Error(`Unexpected import: ${name}`)
     },
-    window: supported ? { AudioContext } : {},
-    navigator: {},
+    window: supported ? { Audio } : {},
+    navigator: { userActivation: { get isActive() { return gesture } } },
     document: { hidden: false, addEventListener(name, fn) { events[name] = fn } },
     localStorage: {
       getItem: (key) => storage.get(key) ?? null,
@@ -65,60 +63,78 @@ function setup({ restored = false, supported = true } = {}) {
     Date: { now: () => now },
     setInterval(fn) { interval = fn; return 1 },
     clearInterval() { interval = undefined },
+    setTimeout(fn, ms) { const id = ++timeoutId; timeouts.set(id, { fn, at: now + ms }); return id },
+    clearTimeout(id) { timeouts.delete(id) },
   }
   vm.runInNewContext(compile(source), sandbox)
   return {
-    ...sandbox.exports, contexts, tones, events,
+    ...sandbox.exports, players, alarms, events,
     click(fn) { gesture = true; try { fn() } finally { gesture = false } },
-    advance(ms, tick = true) { now += ms; if (tick) interval?.() },
+    advance(ms, tick = true) {
+      now += ms
+      for (const [id, timeout] of timeouts) {
+        if (timeout.at <= now) { timeouts.delete(id); timeout.fn() }
+      }
+      if (tick) interval?.()
+    },
   }
 }
 
-test('a gesture unlocks audio for asynchronous completion and subsequent timers', () => {
+test('gesture primes unmuted media silently and reuses it for subsequent alarms', async () => {
   const h = setup()
   h.click(() => h.prepareTimerAudio())
-  h.restTimer.start(1) // after the async save, outside the gesture
-  h.advance(1000)
-  assert.deepEqual(h.tones, [880, 880, 1175])
+  assert.equal(h.players[0].src, 'silence.wav')
+  assert.equal(h.players[0].muted, false)
+  assert.equal(h.alarms.length, 0)
+  await Promise.resolve()
   h.restTimer.start(1)
   h.advance(1000)
-  assert.equal(h.tones.length, 6)
-  assert.equal(h.contexts.length, 1)
+  assert.equal(h.alarms.length, 1)
+  h.restTimer.start(1)
+  assert.equal(h.players[0].paused, true)
+  h.advance(1000)
+  assert.equal(h.alarms.length, 2)
+  assert.equal(h.players.length, 1)
 })
 
-test('muting and skipping suppress the alarm', () => {
+test('muting and skipping suppress alarms and stop active playback', async () => {
   const h = setup()
   h.click(() => h.restTimer.start(1))
+  await Promise.resolve()
   h.setTimerSoundEnabled(false)
   h.advance(1000)
-  assert.equal(h.tones.length, 0)
+  assert.equal(h.alarms.length, 0)
   h.click(() => h.setTimerSoundEnabled(true))
   h.restTimer.start(1)
   h.restTimer.skip()
   h.advance(1000)
-  assert.equal(h.tones.length, 0)
+  assert.equal(h.alarms.length, 0)
+  h.restTimer.start(1)
+  h.advance(1000)
+  assert.equal(h.players[0].paused, false)
+  h.setTimerSoundEnabled(false)
+  assert.equal(h.players[0].paused, true)
 })
 
-test('adjustment changes the deadline without firing twice', () => {
+test('adjustment changes the deadline without firing twice', async () => {
   const h = setup()
   h.click(() => h.restTimer.start(1))
+  await Promise.resolve()
   h.restTimer.adjust(1)
   h.advance(1000)
-  assert.equal(h.tones.length, 0)
+  assert.equal(h.alarms.length, 0)
   h.advance(1000)
   h.advance(1000)
-  assert.equal(h.tones.length, 3)
+  assert.equal(h.alarms.length, 1)
 })
 
-test('a restored timer unlocks on interaction and catches up on foregrounding', () => {
+test('restored timer unlocks on interaction and catches up on foregrounding', async () => {
   const h = setup({ restored: true })
   h.click(() => h.events.click())
-  h.contexts[0].state = 'interrupted'
-  h.click(() => h.events.click())
-  h.advance(1000, false) // iOS may suspend interval callbacks in the background
+  await Promise.resolve()
+  h.advance(1000, false)
   h.events.visibilitychange()
-  assert.equal(h.contexts[0].state, 'running')
-  assert.equal(h.tones.length, 3)
+  assert.equal(h.alarms.length, 1)
 })
 
 test('unsupported audio does not prevent timer completion', () => {
@@ -129,19 +145,39 @@ test('unsupported audio does not prevent timer completion', () => {
   assert.equal(h.restTimer.lastNaturalEnd(), 11000)
 })
 
-test('a delayed audio resume does not replay a stale alarm', async () => {
+test('pending playback is cancelled after five seconds', async () => {
   const h = setup()
   h.click(() => h.restTimer.start(1))
-  const ctx = h.contexts[0]
-  ctx.state = 'interrupted'
-  let resolve
-  ctx.resume = () => new Promise((done) => { resolve = done })
-  h.advance(1000)
-  h.advance(6000)
-  ctx.state = 'running'
-  resolve()
   await Promise.resolve()
-  assert.equal(h.tones.length, 0)
+  const player = h.players[0]
+  player.play = () => { player.pending = true; return new Promise(() => {}) }
+  h.advance(1000)
+  assert.equal(player.pending, true)
+  h.advance(5000)
+  assert.equal(player.pending, false)
+  assert.equal(player.paused, true)
+})
+
+test('late priming completion cannot pause or replace a newer alarm', async () => {
+  const h = setup()
+  h.click(() => h.restTimer.start(1))
+  h.advance(1000)
+  await Promise.resolve()
+  assert.equal(h.players[0].src, 'alert.wav')
+  assert.equal(h.players[0].paused, false)
+})
+
+test('rejected playback can be primed again on the next gesture', async () => {
+  const h = setup()
+  h.click(() => h.restTimer.start(1))
+  await Promise.resolve()
+  h.players[0].unlocked = false
+  h.advance(1000)
+  await Promise.resolve()
+  h.click(() => h.restTimer.start(1))
+  await Promise.resolve()
+  h.advance(1000)
+  assert.equal(h.alarms.length, 1)
 })
 
 test('the workout handler unlocks audio before awaiting the set save', async () => {
@@ -165,12 +201,12 @@ test('the workout handler unlocks audio before awaiting the set save', async () 
   vm.runInNewContext(compile(`const completeSet = ${handler.getText(tree)}; globalThis.handler = completeSet`), sandbox)
   let completion
   h.click(() => { completion = sandbox.handler({}, 1, 20, 10) })
-  assert.equal(h.contexts[0]?.state, 'running')
+  assert.equal(h.players[0]?.unlocked, true)
   assert.equal(h.restTimer.get(), null)
   finishSave()
   await completion
   h.advance(1000)
-  assert.equal(h.tones.length, 3)
+  assert.equal(h.alarms.length, 1)
 })
 
 for (const focused of [true, false]) {

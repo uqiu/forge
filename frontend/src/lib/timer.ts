@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { t } from './i18n'
 import { syncRestPush } from './push'
+import alertUrl from '../assets/rest-alert.wav'
+import silenceUrl from '../assets/rest-silence.wav'
 
 const TIMER_KEY = 'forge_rest_timer'
 const SOUND_KEY = 'forge_timer_sound'
@@ -14,23 +16,51 @@ export function isTimerSoundEnabled(): boolean {
 export function setTimerSoundEnabled(on: boolean) {
   localStorage.setItem(SOUND_KEY, on ? 'on' : 'off')
   if (on) prepareTimerAudio()
+  else stopTimerAudio()
 }
 
-let audioContext: AudioContext | null = null
+// HTML media playback uses iOS's media channel, which ignores the Ring/Silent
+// switch. Web Audio's default ambient channel obeys it, even when running.
+let timerAudio: HTMLAudioElement | null = null
+let audioPrepared = false
+let preparingAudio = false
+let playbackVersion = 0
+let playbackTimeout: ReturnType<typeof setTimeout> | null = null
 
-/** Call synchronously from a user gesture, before any async save. iOS will
- *  otherwise leave the context suspended when the countdown finishes. */
+function stopTimerAudio() {
+  playbackVersion++
+  if (playbackTimeout != null) clearTimeout(playbackTimeout)
+  playbackTimeout = null
+  timerAudio?.pause()
+  preparingAudio = false
+}
+
+/** Call synchronously from a user gesture, before any async save. Reuse the
+ * same media element: Safari grants playback permission per element. The
+ * short silent file primes it without muting the element or looping audio. */
 export function prepareTimerAudio() {
-  if (!isTimerSoundEnabled()) return
+  if (!isTimerSoundEnabled() || audioPrepared || preparingAudio) return
+  if (navigator.userActivation && !navigator.userActivation.isActive) return
   try {
-    if (!audioContext || audioContext.state === 'closed') {
-      const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
-      audioContext = new Ctx()
-    }
-    if (audioContext.state !== 'running') {
-      void audioContext.resume().catch(() => {})
-    }
+    timerAudio ??= new window.Audio()
+    const audio = timerAudio
+    audio.preload = 'auto'
+    audio.src = silenceUrl
+    preparingAudio = true
+    const version = ++playbackVersion
+    void audio.play().then(() => {
+      if (version !== playbackVersion) return
+      audio.pause()
+      audioPrepared = true
+      preparingAudio = false
+      // Fetch the actual alert during the countdown, not at its deadline.
+      audio.src = alertUrl
+      audio.load()
+    }).catch(() => {
+      if (version === playbackVersion) preparingAudio = false
+    })
   } catch {
+    preparingAudio = false
     // Audio is optional; unsupported browsers must still start the timer.
   }
 }
@@ -117,44 +147,34 @@ function fireDone() {
   }
 }
 
-async function beep() {
-  if (!isTimerSoundEnabled()) return
-  const finishedAt = lastNaturalEnd
+function beep() {
+  if (!isTimerSoundEnabled() || !timerAudio) return
+  stopTimerAudio()
+  const audio = timerAudio
+  const version = playbackVersion
   try {
-    const ctx = audioContext
-    if (!ctx || ctx.state === 'closed') return
-    if (ctx.state !== 'running') await ctx.resume()
-    // A blocked resume may resolve only on a much later gesture. Do not play
-    // an old alarm, or one the user muted while it was waiting.
-    if (ctx.state !== 'running' || !isTimerSoundEnabled() ||
-        lastNaturalEnd !== finishedAt || state || Date.now() - finishedAt > 5000) return
-    const at = (t: number, freq: number) => {
-      const osc = ctx.createOscillator()
-      const gain = ctx.createGain()
-      osc.type = 'sine'
-      osc.frequency.value = freq
-      gain.gain.setValueAtTime(0.001, ctx.currentTime + t)
-      gain.gain.exponentialRampToValueAtTime(0.35, ctx.currentTime + t + 0.02)
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.28)
-      osc.connect(gain).connect(ctx.destination)
-      osc.onended = () => {
-        osc.disconnect()
-        gain.disconnect()
-      }
-      osc.start(ctx.currentTime + t)
-      osc.stop(ctx.currentTime + t + 0.3)
-    }
-    at(0, 880)
-    at(0.35, 880)
-    at(0.7, 1175)
+    if (audio.getAttribute('src') !== alertUrl) audio.src = alertUrl
+    audio.currentTime = 0
+    // Cancel a pending play as well as active playback, so an alarm blocked
+    // by browser policy cannot unexpectedly sound on a much later gesture.
+    playbackTimeout = setTimeout(() => {
+      if (version === playbackVersion) stopTimerAudio()
+    }, 5000)
+    void audio.play().catch(() => {
+      if (version !== playbackVersion) return
+      audioPrepared = false
+      stopTimerAudio()
+    })
   } catch {
-    // audio unsupported
+    audioPrepared = false
+    stopTimerAudio()
   }
 }
 
 export const restTimer = {
   start(seconds: number) {
     if (seconds <= 0) return
+    if (!preparingAudio) stopTimerAudio()
     prepareTimerAudio()
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission().catch(() => {})
@@ -176,6 +196,7 @@ export const restTimer = {
     syncRestPush(state.endsAt)
   },
   skip() {
+    stopTimerAudio()
     state = null
     persist()
     stopTicking()

@@ -30,7 +30,7 @@ export default defineConfig({
         ],
       },
       injectManifest: {
-        globPatterns: ['**/*.{js,css,html,svg,png}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,wav}'],
         // Movement demos are loaded only when requested.
         // Precaching them would nearly double the install payload for every
         // user; the service worker caches each one the first time it's opened
