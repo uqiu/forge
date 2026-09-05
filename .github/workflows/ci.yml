@@ -6,6 +6,12 @@ on:
   # and the deploy waits on them — rather than testing and shipping in parallel.
   workflow_call:
 
+# This repository's default token is read-write, so that release.yml can hand
+# uqiu/cicd the `packages: write` it needs to push the image. Tests need none of
+# that, and the default is only a default — so say so here.
+permissions:
+  contents: read
+
 jobs:
   frontend:
     runs-on: ubuntu-latest
