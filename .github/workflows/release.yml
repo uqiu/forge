@@ -29,6 +29,14 @@ jobs:
 
   ship:
     needs: test
+    # ship.yml's build job pushes to GHCR, and a called workflow can't hold a
+    # permission its caller doesn't — so the write has to be granted here, on
+    # the calling job, even though the grant is used over in uqiu/cicd. Without
+    # it the run is rejected at startup: three seconds, no jobs, and a message
+    # that only says the workflow file has a problem.
+    permissions:
+      contents: read
+      packages: write
     uses: uqiu/cicd/.github/workflows/ship.yml@main
     with:
       dir: ${{ vars.DEPLOY_DIR || '~/forge' }}
