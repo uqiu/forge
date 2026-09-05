@@ -110,9 +110,9 @@ forge/
 ```
 
 Every push to `main` runs the tests, publishes an arm64 image to GHCR, and
-deploys it to the home server over Tailscale — see `docs/deploy.md`. Everything
-after the tests is a reusable workflow (`ship.yml`), so another project deploys
-to the same server with about fifteen lines and no server-side setup.
+deploys it to the home server over Tailscale — see `docs/deploy.md`. The
+pipeline after the tests is shared with my other self-hosted projects and lives
+in [uqiu/cicd](https://github.com/uqiu/cicd).
 
 ## Credits
 

@@ -3,9 +3,9 @@
 # can additionally create a versioned tag, and is the way to redeploy without a
 # code change (a rollback, or a retry after a failed deploy).
 #
-# Everything after the tests lives in ship.yml, which other projects call the
-# same way. This file is the template: swap the two values under `with` and the
-# test job, and a new project is deploying.
+# Everything after the tests lives in uqiu/cicd, shared with every other
+# project that deploys to the same box. What's left here is what's specific to
+# Forge: its tests, where it lives on the server, and how to tell it's alive.
 name: Publish and deploy
 
 on:
@@ -29,7 +29,7 @@ jobs:
 
   ship:
     needs: test
-    uses: ./.github/workflows/ship.yml
+    uses: uqiu/cicd/.github/workflows/ship.yml@main
     with:
       dir: ${{ vars.DEPLOY_DIR || '~/forge' }}
       health-url: http://127.0.0.1:8081/api/health
