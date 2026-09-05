@@ -33,6 +33,14 @@ on:
         description: Subdirectory of `dir` holding compose.yaml, when it isn't at the top.
         type: string
         default: '.'
+      auto-clone:
+        description: >-
+          Clone the repository when `dir` doesn't exist yet, so a new project
+          needs nothing done on the server by hand. Anonymous HTTPS, so it only
+          works for a public repository; a private one needs credentials on the
+          server and should be cloned there once instead.
+        type: boolean
+        default: true
       health-url:
         description: URL to poll from inside the server once the container restarts.
         required: true
@@ -112,8 +120,20 @@ jobs:
           USER: ${{ secrets.DEPLOY_USER }}
           DIR: ${{ inputs.dir }}
           COMPOSE_DIR: ${{ inputs.compose-dir }}
+          AUTO_CLONE: ${{ inputs.auto-clone }}
+          CLONE_URL: ${{ github.server_url }}/${{ github.repository }}.git
         run: |
+          # Unquoted heredoc: the variables above expand here, on the runner,
+          # and the resulting script is what the server runs.
           ssh -o BatchMode=yes "$USER@$HOST" bash -euo pipefail <<EOF
+            if [ ! -d "$DIR" ]; then
+              if [ "$AUTO_CLONE" != "true" ]; then
+                echo "$DIR does not exist and auto-clone is off." >&2
+                exit 1
+              fi
+              echo "First deploy — cloning into $DIR"
+              git clone --quiet "$CLONE_URL" "$DIR"
+            fi
             cd "$DIR"
             # The compose file may have changed too. Only sync when the
             # directory is a checkout — a server that just holds a compose file
@@ -125,6 +145,7 @@ jobs:
             cd "$COMPOSE_DIR"
             docker compose pull
             docker compose up -d
+            # Only dangling images; the sha-tagged ones a rollback needs stay.
             docker image prune -f
           EOF
 

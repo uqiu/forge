@@ -1,0 +1,158 @@
+# Builds an image, pushes it to the caller's GHCR namespace, and rolls it out
+# to the home server. The whole pipeline after the tests, in one call.
+#
+# A new project's entire deployment setup:
+#
+#   name: Publish and deploy
+#   on:
+#     push:
+#       branches: [main]
+#     workflow_dispatch:
+#       inputs:
+#         tag:
+#           description: Additional image tag (e.g. v0.1.0).
+#           required: false
+#   jobs:
+#     test:
+#       uses: ./.github/workflows/ci.yml
+#     ship:
+#       needs: test
+#       uses: uqiu/forge/.github/workflows/ship.yml@main
+#       with:
+#         dir: ~/myproject
+#         health-url: http://127.0.0.1:8930/healthz
+#         tag: ${{ inputs.tag }}
+#       secrets: inherit
+#
+# Tests stay with the caller — every project tests differently, and there is
+# nothing to share there. Everything after them is identical.
+#
+# Need to redeploy without rebuilding? Call deploy-to-server.yml directly.
+name: Ship
+
+on:
+  workflow_call:
+    inputs:
+      # ── where it runs on the server ──────────────────────────────────────
+      dir:
+        description: Directory on the server holding the compose file.
+        required: true
+        type: string
+      compose-dir:
+        description: Subdirectory of `dir` holding compose.yaml, when it isn't at the top.
+        type: string
+        default: '.'
+      auto-clone:
+        description: Clone the repository on the server when `dir` doesn't exist yet (public repositories only).
+        type: boolean
+        default: true
+      health-url:
+        description: URL to poll from inside the server once the container restarts.
+        required: true
+        type: string
+      health-timeout:
+        description: Seconds to wait for the health check before failing the deploy.
+        type: number
+        default: 60
+      # ── how the image is built ───────────────────────────────────────────
+      context:
+        description: Docker build context.
+        type: string
+        default: '.'
+      dockerfile:
+        description: Dockerfile path, relative to the repository root.
+        type: string
+        default: Dockerfile
+      platforms:
+        description: Target platforms. The server is aarch64; building only what it runs keeps an unused amd64 image out of the registry.
+        type: string
+        default: linux/arm64
+      runner:
+        description: >-
+          Runner for the build. GitHub's arm64 runners (ubuntu-24.04-arm) are
+          free for public repositories and build an arm64 image natively —
+          several times faster than emulating it. Private repositories don't
+          get them for free, so the default stays on the x86 runner with QEMU.
+        type: string
+        default: ubuntu-latest
+      build-args:
+        description: Extra build args, one per line. VERSION is always passed.
+        type: string
+        default: ''
+      tag:
+        description: Additional image tag besides `latest` (e.g. v0.1.0).
+        type: string
+        default: ''
+      diagnostics:
+        description: Print tailnet diagnostics on the deploy. Leave off for public repositories — their logs are world-readable.
+        type: boolean
+        default: false
+    secrets:
+      TS_OAUTH_CLIENT_ID:
+        required: true
+      TS_OAUTH_SECRET:
+        required: true
+      DEPLOY_SSH_KEY:
+        required: true
+      DEPLOY_KNOWN_HOSTS:
+        required: true
+      DEPLOY_HOST:
+        required: true
+      DEPLOY_USER:
+        required: true
+
+jobs:
+  publish:
+    runs-on: ${{ inputs.runner }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      # Only needed to build a foreign architecture. On an arm64 runner
+      # building arm64, emulation would just slow things down.
+      - uses: docker/setup-qemu-action@v3
+        if: ${{ !contains(inputs.runner, 'arm') }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.dockerfile }}
+          platforms: ${{ inputs.platforms }}
+          push: true
+          build-args: |
+            VERSION=${{ inputs.tag || github.sha }}
+            ${{ inputs.build-args }}
+          # `latest` is what compose pulls; the sha tag is what a rollback
+          # pins to.
+          tags: |
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ github.sha }}
+            ${{ inputs.tag && format('ghcr.io/{0}:{1}', github.repository, inputs.tag) || '' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: publish
+    # Fully qualified, not `./…`: a relative path inside a reusable workflow
+    # resolves against the *calling* repository, so it would break for every
+    # caller but this one. Pinning @main also means a fix to the deploy logic
+    # reaches every project on its next run, with nothing to re-commit.
+    uses: uqiu/forge/.github/workflows/deploy-to-server.yml@main
+    with:
+      dir: ${{ inputs.dir }}
+      compose-dir: ${{ inputs.compose-dir }}
+      auto-clone: ${{ inputs.auto-clone }}
+      health-url: ${{ inputs.health-url }}
+      health-timeout: ${{ inputs.health-timeout }}
+      diagnostics: ${{ inputs.diagnostics }}
+    secrets: inherit

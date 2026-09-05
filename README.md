@@ -110,8 +110,9 @@ forge/
 ```
 
 Every push to `main` runs the tests, publishes an arm64 image to GHCR, and
-deploys it to the home server over Tailscale — see `docs/deploy.md`. The deploy
-half is a reusable workflow other projects can call.
+deploys it to the home server over Tailscale — see `docs/deploy.md`. Everything
+after the tests is a reusable workflow (`ship.yml`), so another project deploys
+to the same server with about fifteen lines and no server-side setup.
 
 ## Credits
 
