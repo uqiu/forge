@@ -1,0 +1,20 @@
+{
+  "source": "https://github.com/JahelCuadrado/ExerciseGymGifsDB",
+  "revision": "f6d16e977fbee3c04295311c44cb8374ca8ff182",
+  "note": "GIFs belong to their original authors; the source repository only organizes them.",
+  "figures": {
+    "goblet-squat": "quads/dumbbell-goblet-squat",
+    "dumbbell-bench-press": "pectorals/dumbbell-bench-press",
+    "pull-up": "lats/pull-up",
+    "dumbbell-romanian-deadlift": "glutes/dumbbell-romanian-deadlift",
+    "incline-dumbbell-press": "pectorals/dumbbell-incline-bench-press",
+    "bicep-curl": "biceps/dumbbell-biceps-curl",
+    "seated-dumbbell-press": "delts/dumbbell-seated-shoulder-press",
+    "one-arm-dumbbell-row": "upper-back/dumbbell-one-arm-bent-over-row",
+    "bulgarian-split-squat": "quads/dumbbell-single-leg-split-squat",
+    "rear-delt-fly": "delts/dumbbell-reverse-fly",
+    "lateral-raise": "delts/dumbbell-lateral-raise",
+    "dumbbell-skull-crusher": "triceps/dumbbell-lying-triceps-extension",
+    "hanging-knee-raise": "abs/hanging-leg-raise"
+  }
+}
