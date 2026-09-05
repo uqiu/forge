@@ -10,10 +10,11 @@
  *  worse than no demo at all. That is also why coverage is deliberately
  *  partial — the button simply doesn't appear for an exercise that isn't here.
  *
- *  Artwork is derived from the user's training-figures-a3.html reference.
- *  The source SVGs preserve the start/end-position detail from that figure. */
+ *  Artwork is vendored from ExerciseGymGifsDB by scripts/import-exercise-gifs.mjs;
+ *  which source GIF each slug came from is recorded in the imported
+ *  SOURCES.json. */
 
-/** Slug of the imported training figure, per canonical exercise name. */
+/** Slug of the imported demo, per canonical exercise name. */
 const DEMOS: Record<string, string> = {
   // ── w-a计划 ──────────────────────────────────────────────────────────────
   'Goblet Squat': 'goblet-squat',
@@ -36,8 +37,10 @@ const DEMOS: Record<string, string> = {
 }
 
 export interface ExerciseDemo {
-  /** Frame image URLs, in playback order. */
-  frames: string[]
+  /** Animated WebP of the movement, looping. */
+  loop: string
+  /** First frame of the loop, shown while paused. */
+  still: string
 }
 
 /**
@@ -51,7 +54,8 @@ export function demoFor(name: string, variantOfName?: string | null): ExerciseDe
   const slug = DEMOS[name] ?? (variantOfName ? DEMOS[variantOfName] : undefined)
   if (!slug) return null
   return {
-    frames: [`/exercise-demos/${slug}/frame-1.svg`, `/exercise-demos/${slug}/frame-2.svg`],
+    loop: `/exercise-demos/${slug}.webp`,
+    still: `/exercise-demos/${slug}.still.webp`,
   }
 }
 

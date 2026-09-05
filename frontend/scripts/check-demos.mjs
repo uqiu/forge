@@ -1,5 +1,5 @@
-// Every slug in exerciseDemos.ts must have its frames on disk, every mapped
-// exercise name must exist in the seed catalog, and every vendored directory
+// Every slug in exerciseDemos.ts must have its loop and still on disk, every
+// mapped exercise name must exist in the seed catalog, and every vendored file
 // must be reachable from the map. A wrong slug is silent at build time and
 // shows up as an empty sheet.
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
@@ -31,26 +31,26 @@ const catalog = new Set(
 const problems = []
 for (const [name, slug] of pairs) {
   if (!catalog.has(name)) problems.push(`"${name}" is not a seed exercise`)
-  for (let i = 1; i <= 2; i++) {
-    const f = join(ASSETS, slug, `frame-${i}.svg`)
-    if (!existsSync(f)) problems.push(`"${name}" → ${slug}/frame-${i}.svg missing`)
+  for (const file of [`${slug}.webp`, `${slug}.still.webp`]) {
+    if (!existsSync(join(ASSETS, file))) problems.push(`"${name}" → ${file} missing`)
   }
 }
 
 const mapped = new Set(pairs.map(([, slug]) => slug))
-const onDisk = readdirSync(ASSETS, { withFileTypes: true })
-  .filter((d) => d.isDirectory())
-  .map((d) => d.name)
+// The import writes SOURCES.json alongside the artwork; it maps to nothing.
+const onDisk = readdirSync(ASSETS)
+  .filter((f) => f.endsWith('.webp') && !f.endsWith('.still.webp'))
+  .map((f) => f.replace(/\.webp$/, ''))
 for (const slug of onDisk) {
-  if (!mapped.has(slug)) problems.push(`${slug}/ is vendored but nothing maps to it`)
+  if (!mapped.has(slug)) problems.push(`${slug}.webp is vendored but nothing maps to it`)
 }
 
 console.log(`mapped exercises: ${pairs.length}`)
-console.log(`training figures: ${onDisk.length}`)
+console.log(`vendored demos: ${onDisk.length}`)
 
 if (problems.length) {
   console.error(`\n${problems.length} problem(s):`)
   for (const p of problems) console.error(`  ${p}`)
   process.exit(1)
 }
-console.log('every mapping resolves to frames on disk')
+console.log('every mapping resolves to artwork on disk')

@@ -111,10 +111,15 @@ forge/
 
 ## Credits
 
-Movement demonstrations in `frontend/public/exercise-demos/` are SVG figures
-derived from the user's `training-figures-a3.html` training reference. Only the
-exercises listed in `frontend/src/lib/exerciseDemos.ts` have one; the button is
-hidden for the rest rather than guessing at a match.
+Movement demonstrations in `frontend/public/exercise-demos/` are vendored from
+[ExerciseGymGifsDB](https://github.com/JahelCuadrado/ExerciseGymGifsDB) by
+`frontend/scripts/import-exercise-gifs.mjs`, which converts each source GIF into
+an animated WebP plus a still first frame and records its provenance in
+`exercise-demos/SOURCES.json`. That repository states it collected the artwork
+from the internet, does not hold the copyright, and grants no rights over it —
+so the GIFs belong to their original authors and carry no license for
+redistribution. Only the exercises listed in `frontend/src/lib/exerciseDemos.ts`
+have a demo; the button is hidden for the rest rather than guessing at a match.
 
 Anatomy paths in `frontend/src/lib/bodyPaths.ts` come from
 [react-native-body-highlighter](https://github.com/HichamELBSI/react-native-body-highlighter)
