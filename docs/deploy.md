@@ -69,20 +69,39 @@ The server directory is an input (`dir`), not a secret — it differs per projec
 and isn't sensitive. Override Forge's default with a `DEPLOY_DIR` repository
 *variable* if the checkout isn't at `~/forge`.
 
-Setting them from the CLI, signed in as the repository owner:
+**Secrets are write-only.** GitHub takes a value encrypted with the
+repository's public key and offers no way to read one back; `gh secret list`
+returns names and timestamps only. There is no exporting them from the
+repository that already has them — a new project means re-entering the values,
+so keep them somewhere you control.
+
+`scripts/seed-deploy-secrets.sh` is that somewhere, applied. Keep the values in
+`~/.config/deploy-secrets.env` (mode 600, and note that it holds a Tailscale
+secret):
 
 ```bash
-gh secret set TS_OAUTH_CLIENT_ID  -R uqiu/<repo> --body '...'
-gh secret set TS_OAUTH_SECRET     -R uqiu/<repo> --body '...'
-gh secret set DEPLOY_SSH_KEY      -R uqiu/<repo> < ~/.ssh/deploy_ed25519
-gh secret set DEPLOY_KNOWN_HOSTS  -R uqiu/<repo> --body "$(ssh-keyscan <server> 2>/dev/null)"
-gh secret set DEPLOY_HOST         -R uqiu/<repo> --body '<server>'
-gh secret set DEPLOY_USER         -R uqiu/<repo> --body '<user>'
+DEPLOY_HOST=my-server
+DEPLOY_USER=deploy
+DEPLOY_SSH_KEY_FILE=~/.ssh/hub_deploy
+TS_OAUTH_CLIENT_ID=k123...
+TS_OAUTH_SECRET=tskey-client-...
 ```
 
-Secret *values* can't be read back out of GitHub, so keep the originals
-wherever you generated them — copying a project means re-entering, not
-exporting.
+Then each new repository is one command, signed in as the repository owner:
+
+```bash
+scripts/seed-deploy-secrets.sh uqiu/myproject
+```
+
+`DEPLOY_KNOWN_HOSTS` isn't in the file — the script runs `ssh-keyscan` at the
+time, so a rebuilt server re-pins instead of failing later with a fingerprint
+mismatch. Values are piped over stdin rather than passed as arguments, which
+would be visible in `ps`.
+
+If you've lost a value: the Tailscale OAuth **client id** is visible in the
+admin console, but the **secret** is shown once at creation — generate a new
+client (scoped to `tag:ci`) and delete the old one. `DEPLOY_KNOWN_HOSTS`
+regenerates itself, and the SSH key is whatever `ssh-copy-id` put on the server.
 
 ## One-time server setup
 
