@@ -128,6 +128,49 @@ test('adjustment changes the deadline without firing twice', async () => {
   assert.equal(h.alarms.length, 1)
 })
 
+test('15-second adjustments move progress on a stable scale', () => {
+  const h = setup()
+  h.restTimer.start(120)
+  h.advance(60000)
+  const progress = () => {
+    const timer = h.restTimer.get()
+    return timer.remaining / timer.total
+  }
+  assert.equal(progress(), 0.5)
+  h.restTimer.adjust(15)
+  assert.equal(h.restTimer.get().remaining, 75)
+  assert.equal(progress(), 0.625)
+  h.restTimer.adjust(-15)
+  assert.equal(progress(), 0.5)
+  h.restTimer.adjust(-15)
+  assert.equal(progress(), 0.375)
+})
+
+test('subtracting beyond the remaining time does not refill the progress bar', () => {
+  const h = setup()
+  h.restTimer.start(10)
+  h.advance(7000)
+  h.restTimer.adjust(-15)
+  const timer = h.restTimer.get()
+  assert.equal(timer.remaining, 1)
+  assert.equal(timer.total, 10)
+  assert.equal(timer.remaining / timer.total, 0.1)
+  h.advance(1000)
+  assert.equal(h.restTimer.get(), null)
+})
+
+test('extending beyond capacity grows the scale without overflowing or shrinking it', () => {
+  const h = setup()
+  h.restTimer.start(30)
+  h.advance(5000)
+  h.restTimer.adjust(15)
+  assert.equal(h.restTimer.get().remaining, 40)
+  assert.equal(h.restTimer.get().total, 40)
+  h.restTimer.adjust(-15)
+  assert.equal(h.restTimer.get().remaining, 25)
+  assert.equal(h.restTimer.get().total, 40)
+})
+
 test('restored timer unlocks on interaction and catches up on foregrounding', async () => {
   const h = setup({ restored: true })
   h.click(() => h.events.click())

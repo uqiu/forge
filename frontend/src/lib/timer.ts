@@ -190,7 +190,9 @@ export const restTimer = {
     prepareTimerAudio()
     const remaining = Math.max(0, state.endsAt - Date.now()) / 1000
     const next = Math.max(1, remaining + deltaSeconds)
-    state = { endsAt: Date.now() + next * 1000, total: Math.max(state.total + deltaSeconds, next) }
+    // Keep a stable progress scale when adjusting the remaining time. Shrinking
+    // the denominator can otherwise refill the bar when subtracting near zero.
+    state = { endsAt: Date.now() + next * 1000, total: Math.max(state.total, next) }
     persist()
     notify()
     syncRestPush(state.endsAt)
