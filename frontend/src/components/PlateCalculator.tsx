@@ -111,6 +111,8 @@ export default function PlateCalculator({ open, onClose, initialWeight, unit }: 
               value={weight ?? (initialWeight != null ? String(initialWeight) : '')}
               onChange={(e) => setWeight(e.target.value)}
               onFocus={(e) => e.target.select()}
+              type="number"
+              step="any"
               inputMode="decimal"
               className="tnum w-28 rounded-lg border border-input bg-card px-2 py-1.5 text-center text-2xl font-semibold outline-none focus:ring-2 focus:ring-ring"
             />

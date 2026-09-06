@@ -346,6 +346,8 @@ export function MeasureDetailPage() {
               autoFocus
               value={value}
               onChange={(e) => setValue(e.target.value)}
+              type="number"
+              step="any"
               inputMode="decimal"
               enterKeyHint="done"
               className="tnum h-12 rounded-lg border border-input bg-card px-4 text-base outline-none focus:ring-2 focus:ring-ring"

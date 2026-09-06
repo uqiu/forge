@@ -295,6 +295,11 @@ export default function SetRow({
           onChange={(e) => setWeight(e.target.value)}
           onFocus={(e) => e.target.select()}
           onKeyDown={(e) => e.key === 'Enter' && repsRef.current?.focus()}
+          // type=number, not just inputMode: iOS hands a third-party keyboard
+          // the field's type but not its inputmode, so without this the letters
+          // layout comes up on the number we type most.
+          type="number"
+          step="any"
           inputMode="decimal"
           enterKeyHint="next"
           placeholder={
@@ -312,6 +317,7 @@ export default function SetRow({
           onChange={(e) => setReps(e.target.value)}
           onFocus={(e) => e.target.select()}
           onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+          type="number"
           inputMode="numeric"
           enterKeyHint="done"
           placeholder={
@@ -338,6 +344,8 @@ export default function SetRow({
               if (parsed !== (set.rpe ?? null)) onRpe(parsed)
             }}
             onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+            type="number"
+            step="any"
             inputMode="decimal"
             enterKeyHint="done"
             placeholder="RPE"

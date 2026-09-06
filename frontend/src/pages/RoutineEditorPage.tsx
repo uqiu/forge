@@ -244,6 +244,7 @@ export default function RoutineEditorPage() {
                   onChange={(e) =>
                     update(i, { rep_min: e.target.value ? Number(e.target.value) : null })
                   }
+                  type="number"
                   inputMode="numeric"
                   placeholder={t('placeholder|min')}
                   className="tnum h-9 w-12 rounded-lg border border-input bg-card px-1 text-center text-sm text-foreground outline-none"
@@ -254,6 +255,7 @@ export default function RoutineEditorPage() {
                   onChange={(e) =>
                     update(i, { rep_max: e.target.value ? Number(e.target.value) : null })
                   }
+                  type="number"
                   inputMode="numeric"
                   placeholder={t('placeholder|max')}
                   className="tnum h-9 w-12 rounded-lg border border-input bg-card px-1 text-center text-sm text-foreground outline-none"

@@ -180,6 +180,7 @@ function WeightQuickLog() {
           <div className="relative">
             <input
               type="number"
+              step="any"
               inputMode="decimal"
               autoFocus
               value={value}

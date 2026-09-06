@@ -558,6 +558,7 @@ export default function ProgramsSection() {
                     {t('TM')}
                     <input
                       type="number"
+                      step="any"
                       inputMode="decimal"
                       value={l.training_max}
                       onChange={(e) =>
@@ -572,6 +573,7 @@ export default function ProgramsSection() {
                     <Plus size={11} />
                     <input
                       type="number"
+                      step="any"
                       inputMode="decimal"
                       value={l.increment}
                       onChange={(e) =>
@@ -638,6 +640,7 @@ export default function ProgramsSection() {
                     {t('TM')}
                     <input
                       type="number"
+                      step="any"
                       inputMode="decimal"
                       value={l.training_max}
                       onChange={(e) =>
@@ -655,6 +658,7 @@ export default function ProgramsSection() {
                     <Plus size={11} />
                     <input
                       type="number"
+                      step="any"
                       inputMode="decimal"
                       value={l.increment}
                       onChange={(e) =>
