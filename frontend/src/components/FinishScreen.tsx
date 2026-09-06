@@ -2,6 +2,7 @@ import { Check, Share, Trophy } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { formatDuration, formatRelativeDate, formatVolume } from '../lib/format'
 import { getLocale, t, tc } from '../lib/i18n'
+import type { ShareCardExercise } from '../lib/shareCard'
 import { shareWorkoutCard } from '../lib/shareCard'
 import { toast } from '../lib/toast'
 import type { FinishResult } from '../lib/types'
@@ -93,15 +94,18 @@ function ordinal(n: number): string {
 interface FinishScreenProps {
   summary: FinishResult
   unit: string
+  // Snapshot of the session taken before finishing cleared it — the share
+  // card lists what was actually lifted, which the summary doesn't carry
+  exercises?: ShareCardExercise[]
   onDone: () => void
 }
 
-export default function FinishScreen({ summary, unit, onDone }: FinishScreenProps) {
+export default function FinishScreen({ summary, unit, exercises, onDone }: FinishScreenProps) {
   const [sharing, setSharing] = useState(false)
   const doShare = async () => {
     setSharing(true)
     try {
-      await shareWorkoutCard(summary, unit)
+      await shareWorkoutCard({ ...summary, exercises }, unit)
     } catch {
       toast(t('Could not create the share image'))
     }

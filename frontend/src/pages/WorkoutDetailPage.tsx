@@ -17,7 +17,7 @@ import {
   toDatetimeLocal,
 } from '../lib/format'
 import { t, tc, tm } from '../lib/i18n'
-import { shareWorkoutCard } from '../lib/shareCard'
+import { shareCardExercises, shareWorkoutCard } from '../lib/shareCard'
 import { toast } from '../lib/toast'
 import type { SetEntry, Workout, WorkoutExercise, WorkoutSong } from '../lib/types'
 import { cn } from '../lib/utils'
@@ -137,6 +137,8 @@ function EditSetRow({ set, unit, bodyweight, onCommit, onToggleWarmup, onDelete 
         onChange={(e) => setWeight(e.target.value)}
         onBlur={commit}
         onFocus={(e) => e.target.select()}
+        type="number"
+        step="any"
         inputMode="decimal"
         placeholder={bodyweight ? t('BW') : unit}
         className="tnum h-9 rounded-md border border-input bg-background px-1 text-center text-base font-medium outline-none placeholder:text-muted-foreground/50 focus:ring-2 focus:ring-ring"
@@ -146,6 +148,7 @@ function EditSetRow({ set, unit, bodyweight, onCommit, onToggleWarmup, onDelete 
         onChange={(e) => setReps(e.target.value)}
         onBlur={commit}
         onFocus={(e) => e.target.select()}
+        type="number"
         inputMode="numeric"
         placeholder={t('placeholder|reps')}
         className="tnum h-9 rounded-md border border-input bg-background px-1 text-center text-base font-medium outline-none placeholder:text-muted-foreground/50 focus:ring-2 focus:ring-ring"
@@ -321,6 +324,7 @@ export default function WorkoutDetailPage() {
           prs,
           date: parseUTC(workout.started_at),
           music: musicSummary(workout),
+          exercises: shareCardExercises(workout.exercises),
         },
         unit,
       )

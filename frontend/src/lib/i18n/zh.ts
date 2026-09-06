@@ -454,6 +454,7 @@ export const ZH: Record<string, string> = {
   '{delta}% volume vs last time': '容量较上次 {delta}%',
   'Personal records': '个人纪录',
   'card|PERSONAL RECORDS': '个人纪录',
+  'card|EXERCISES': '训练内容',
   'Personal records will be detected when the workout syncs.': '同步之后会自动判定个人纪录。',
   'Could not create the share image': '无法生成分享图片',
   'mostly {artist}': '主要是 {artist}',

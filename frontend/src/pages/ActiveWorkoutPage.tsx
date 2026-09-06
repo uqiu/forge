@@ -15,6 +15,7 @@ import { api } from '../lib/api'
 import { hasDemo } from '../lib/exerciseDemos'
 import { t, tc, tm } from '../lib/i18n'
 import { isRpeEnabled } from '../lib/prefs'
+import { shareCardExercises, type ShareCardExercise } from '../lib/shareCard'
 import { toast } from '../lib/toast'
 import { formatClock, formatRelativeDate, formatSetWeight, formatVolume, parseUTC, restLabel } from '../lib/format'
 import { useOutboxSize } from '../lib/outbox'
@@ -131,6 +132,9 @@ export default function ActiveWorkoutPage() {
   const [confirmFinish, setConfirmFinish] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
   const [summary, setSummary] = useState<FinishResult | null>(null)
+  // Kept for the share card: finishing clears `workout`, and the summary the
+  // server hands back has totals but not the sets behind them
+  const [finishedExercises, setFinishedExercises] = useState<ShareCardExercise[]>([])
   const [error, setError] = useState('')
   const finishingRef = useRef(false)
   const legacyPending = useOutboxSize()
@@ -159,6 +163,7 @@ export default function ActiveWorkoutPage() {
         <FinishScreen
           summary={summary}
           unit={user?.unit ?? 'kg'}
+          exercises={finishedExercises}
           onDone={() => navigate('/history', { replace: true })}
         />
       </div>
@@ -200,8 +205,10 @@ export default function ActiveWorkoutPage() {
   const doFinish = async () => {
     setError('')
     finishingRef.current = true
+    const snapshot = workout ? shareCardExercises(workout.exercises) : []
     try {
       const result = await finish()
+      setFinishedExercises(snapshot)
       restTimer.skip()
       setConfirmFinish(false)
       setSummary(result)
